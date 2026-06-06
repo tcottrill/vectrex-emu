@@ -1,0 +1,361 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;c++;cppm;ixx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hh;hpp;hxx;h++;hm;inl;inc;ipp;xsd</Extensions>
+    </Filter>
+    <Filter Include="Resource Files">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
+    </Filter>
+    <Filter Include="Source Files\sys_audio">
+      <UniqueIdentifier>{0e23ef75-6071-40d6-9fa4-16c9fbbac89c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\sys_input">
+      <UniqueIdentifier>{156cab57-4e54-428f-a481-022f6882f6c1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\sys_fileio">
+      <UniqueIdentifier>{4c5f06e3-0172-4c19-a8a3-83a301eb223d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\sys_graphics">
+      <UniqueIdentifier>{1e8efb07-e574-4e10-b3f5-0f995715c27b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\system">
+      <UniqueIdentifier>{1a720657-d4a3-4d4f-9625-a2c40700983d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\3rdparty">
+      <UniqueIdentifier>{bc135f22-88f8-4e98-8904-2e3cc0a02d90}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\math">
+      <UniqueIdentifier>{c5d9142a-5b16-47bd-a4e8-3d4ffc831ca4}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\project">
+      <UniqueIdentifier>{7b6f7ba9-8919-4216-a4d1-f36bf6ec9e33}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\aae_video">
+      <UniqueIdentifier>{9258c7f1-e5dd-4987-9cbe-5800dd0e1351}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\sys_window">
+      <UniqueIdentifier>{dc49b71f-0899-4062-b4d3-ed561dc64ad5}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="sys_audio\audio_3d.h">
+      <Filter>Source Files\sys_audio</Filter>
+    </ClInclude>
+    <ClInclude Include="sys_audio\emptywav.h">
+      <Filter>Source Files\sys_audio</Filter>
+    </ClInclude>
+    <ClInclude Include="sys_audio\error_wav.h">
+      <Filter>Source Files\sys_audio</Filter>
+    </ClInclude>
+    <ClInclude Include="sys_audio\mixer.h">
+      <Filter>Source Files\sys_audio</Filter>
+    </ClInclude>
+    <ClInclude Include="sys_audio\stb.h">
+      <Filter>Source Files\sys_audio</Filter>
+    </ClInclude>
+    <ClInclude Include="sys_audio\stb_vorbis.h">
+      <Filter>Source Files\sys_audio</Filter>
+    </ClInclude>
+    <ClInclude Include="sys_audio\xaudio2_backend.h">
+      <Filter>Source Files\sys_audio</Filter>
+    </ClInclude>
+    <ClInclude Include="sys_input\joystick.h">
+      <Filter>Source Files\sys_input</Filter>
+    </ClInclude>
+    <ClInclude Include="sys_input\rawinput.h">
+      <Filter>Source Files\sys_input</Filter>
+    </ClInclude>
+    <ClInclude Include="sys_input\input_config.h">
+      <Filter>Source Files\sys_input</Filter>
+    </ClInclude>
+    <ClInclude Include="sys_fileio\aae_fileio.h">
+      <Filter>Source Files\sys_fileio</Filter>
+    </ClInclude>
+    <ClInclude Include="system\deftypes.h">
+      <Filter>Source Files\system</Filter>
+    </ClInclude>
+    <ClInclude Include="system\FrameLimiter.h">
+      <Filter>Source Files\system</Filter>
+    </ClInclude>
+    <ClInclude Include="system\iniFile.h">
+      <Filter>Source Files\system</Filter>
+    </ClInclude>
+    <ClInclude Include="system\os_basic.h">
+      <Filter>Source Files\system</Filter>
+    </ClInclude>
+    <ClInclude Include="system\path_helper.h">
+      <Filter>Source Files\system</Filter>
+    </ClInclude>
+    <ClInclude Include="system\sys_fileio.h">
+      <Filter>Source Files\system</Filter>
+    </ClInclude>
+    <ClInclude Include="system\sys_log.h">
+      <Filter>Source Files\system</Filter>
+    </ClInclude>
+    <ClInclude Include="system\utf8conv.h">
+      <Filter>Source Files\system</Filter>
+    </ClInclude>
+    <ClInclude Include="system\wintimer.h">
+      <Filter>Source Files\system</Filter>
+    </ClInclude>
+    <ClInclude Include="sys_graphics\colordefs.h">
+      <Filter>Source Files\sys_graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="sys_graphics\debug_draw.h">
+      <Filter>Source Files\sys_graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="sys_graphics\gl_prim_debug.h">
+      <Filter>Source Files\sys_graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="sys_graphics\shader_util.h">
+      <Filter>Source Files\sys_graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="sys_graphics\sys_gl.h">
+      <Filter>Source Files\sys_graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="sys_graphics\sys_texture.h">
+      <Filter>Source Files\sys_graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="sys_graphics\texrect.h">
+      <Filter>Source Files\sys_graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="3rdparty\glew.h">
+      <Filter>Source Files\3rdparty</Filter>
+    </ClInclude>
+    <ClInclude Include="3rdparty\json.hpp">
+      <Filter>Source Files\3rdparty</Filter>
+    </ClInclude>
+    <ClInclude Include="3rdparty\miniz.h">
+      <Filter>Source Files\3rdparty</Filter>
+    </ClInclude>
+    <ClInclude Include="3rdparty\stb_image.h">
+      <Filter>Source Files\3rdparty</Filter>
+    </ClInclude>
+    <ClInclude Include="3rdparty\stb_image_write.h">
+      <Filter>Source Files\3rdparty</Filter>
+    </ClInclude>
+    <ClInclude Include="3rdparty\stb_truetype.h">
+      <Filter>Source Files\3rdparty</Filter>
+    </ClInclude>
+    <ClInclude Include="3rdparty\tinyxml2.h">
+      <Filter>Source Files\3rdparty</Filter>
+    </ClInclude>
+    <ClInclude Include="3rdparty\wglew.h">
+      <Filter>Source Files\3rdparty</Filter>
+    </ClInclude>
+    <ClInclude Include="math\circle.h">
+      <Filter>Source Files\math</Filter>
+    </ClInclude>
+    <ClInclude Include="math\MathUtils.h">
+      <Filter>Source Files\math</Filter>
+    </ClInclude>
+    <ClInclude Include="math\rect2d.h">
+      <Filter>Source Files\math</Filter>
+    </ClInclude>
+    <ClInclude Include="math\rotation_table.h">
+      <Filter>Source Files\math</Filter>
+    </ClInclude>
+    <ClInclude Include="project\alg.h">
+      <Filter>Source Files\project</Filter>
+    </ClInclude>
+    <ClInclude Include="project\bios.h">
+      <Filter>Source Files\project</Filter>
+    </ClInclude>
+    <ClInclude Include="project\vecx.h">
+      <Filter>Source Files\project</Filter>
+    </ClInclude>
+    <ClInclude Include="project\via6522.h">
+      <Filter>Source Files\project</Filter>
+    </ClInclude>
+    <ClInclude Include="project\emulator.h">
+      <Filter>Source Files\project</Filter>
+    </ClInclude>
+    <ClInclude Include="project\cpu_m6809.h">
+      <Filter>Source Files\project</Filter>
+    </ClInclude>
+    <ClInclude Include="project\ay8910.h">
+      <Filter>Source Files\project</Filter>
+    </ClInclude>
+    <ClInclude Include="aae_video\aae_compat.h">
+      <Filter>Source Files\aae_video</Filter>
+    </ClInclude>
+    <ClInclude Include="aae_video\aae_mame_driver.h">
+      <Filter>Source Files\aae_video</Filter>
+    </ClInclude>
+    <ClInclude Include="aae_video\shader_definitions.h">
+      <Filter>Source Files\aae_video</Filter>
+    </ClInclude>
+    <ClInclude Include="aae_video\emu_vector_draw.h">
+      <Filter>Source Files\aae_video</Filter>
+    </ClInclude>
+    <ClInclude Include="aae_video\gl_fbo.h">
+      <Filter>Source Files\aae_video</Filter>
+    </ClInclude>
+    <ClInclude Include="aae_video\gl_shader.h">
+      <Filter>Source Files\aae_video</Filter>
+    </ClInclude>
+    <ClInclude Include="aae_video\config.h">
+      <Filter>Source Files\aae_video</Filter>
+    </ClInclude>
+    <ClInclude Include="project\cpu_control.h">
+      <Filter>Source Files\project</Filter>
+    </ClInclude>
+    <ClInclude Include="aae_video\texture_handler.h">
+      <Filter>Source Files\aae_video</Filter>
+    </ClInclude>
+    <ClInclude Include="System\targetver.h">
+      <Filter>Source Files\system</Filter>
+    </ClInclude>
+    <ClInclude Include="aae_video\opengl_renderer.h">
+      <Filter>Source Files\aae_video</Filter>
+    </ClInclude>
+    <ClInclude Include="aae_video\gl_texturing.h">
+      <Filter>Source Files\aae_video</Filter>
+    </ClInclude>
+    <ClInclude Include="system\host_view.h">
+      <Filter>Source Files\sys_window</Filter>
+    </ClInclude>
+    <ClInclude Include="system\host_resource.h">
+      <Filter>Source Files\sys_window</Filter>
+    </ClInclude>
+    <ClInclude Include="system\host_app.h">
+      <Filter>Source Files\sys_window</Filter>
+    </ClInclude>
+    <ClInclude Include="system\host_window.h">
+      <Filter>Source Files\sys_window</Filter>
+    </ClInclude>
+    <ClInclude Include="System\framework.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="sys_audio\audio_3d.cpp">
+      <Filter>Source Files\sys_audio</Filter>
+    </ClCompile>
+    <ClCompile Include="sys_audio\mixer.cpp">
+      <Filter>Source Files\sys_audio</Filter>
+    </ClCompile>
+    <ClCompile Include="sys_audio\stb_vorbis.c">
+      <Filter>Source Files\sys_audio</Filter>
+    </ClCompile>
+    <ClCompile Include="sys_audio\xaudio2_backend.cpp">
+      <Filter>Source Files\sys_audio</Filter>
+    </ClCompile>
+    <ClCompile Include="sys_input\rawinput.cpp">
+      <Filter>Source Files\sys_input</Filter>
+    </ClCompile>
+    <ClCompile Include="sys_input\Joystick.cpp">
+      <Filter>Source Files\sys_input</Filter>
+    </ClCompile>
+    <ClCompile Include="sys_input\input_config.cpp">
+      <Filter>Source Files\sys_input</Filter>
+    </ClCompile>
+    <ClCompile Include="sys_fileio\aae_fileio.cpp">
+      <Filter>Source Files\sys_fileio</Filter>
+    </ClCompile>
+    <ClCompile Include="system\iniFile.cpp">
+      <Filter>Source Files\system</Filter>
+    </ClCompile>
+    <ClCompile Include="system\os_basic.cpp">
+      <Filter>Source Files\system</Filter>
+    </ClCompile>
+    <ClCompile Include="system\path_helper.cpp">
+      <Filter>Source Files\system</Filter>
+    </ClCompile>
+    <ClCompile Include="system\sys_fileio.cpp">
+      <Filter>Source Files\system</Filter>
+    </ClCompile>
+    <ClCompile Include="system\sys_log.cpp">
+      <Filter>Source Files\system</Filter>
+    </ClCompile>
+    <ClCompile Include="system\wintimer.cpp">
+      <Filter>Source Files\system</Filter>
+    </ClCompile>
+    <ClCompile Include="sys_graphics\gl_prim_debug.cpp">
+      <Filter>Source Files\sys_graphics</Filter>
+    </ClCompile>
+    <ClCompile Include="sys_graphics\sys_gl.cpp">
+      <Filter>Source Files\sys_graphics</Filter>
+    </ClCompile>
+    <ClCompile Include="sys_graphics\sys_texture.cpp">
+      <Filter>Source Files\sys_graphics</Filter>
+    </ClCompile>
+    <ClCompile Include="sys_graphics\texrect.cpp">
+      <Filter>Source Files\sys_graphics</Filter>
+    </ClCompile>
+    <ClCompile Include="3rdparty\glew.c">
+      <Filter>Source Files\3rdparty</Filter>
+    </ClCompile>
+    <ClCompile Include="3rdparty\miniz.c">
+      <Filter>Source Files\3rdparty</Filter>
+    </ClCompile>
+    <ClCompile Include="3rdparty\tinyxml2.cpp">
+      <Filter>Source Files\3rdparty</Filter>
+    </ClCompile>
+    <ClCompile Include="system\winmain.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="project\alg.cpp">
+      <Filter>Source Files\project</Filter>
+    </ClCompile>
+    <ClCompile Include="project\vecx.cpp">
+      <Filter>Source Files\project</Filter>
+    </ClCompile>
+    <ClCompile Include="project\via6522.cpp">
+      <Filter>Source Files\project</Filter>
+    </ClCompile>
+    <ClCompile Include="project\emulator.cpp">
+      <Filter>Source Files\project</Filter>
+    </ClCompile>
+    <ClCompile Include="project\cpu_m6809.cpp">
+      <Filter>Source Files\project</Filter>
+    </ClCompile>
+    <ClCompile Include="project\ay8910.cpp">
+      <Filter>Source Files\project</Filter>
+    </ClCompile>
+    <ClCompile Include="aae_video\aae_compat.cpp">
+      <Filter>Source Files\aae_video</Filter>
+    </ClCompile>
+    <ClCompile Include="aae_video\opengl_renderer.cpp">
+      <Filter>Source Files\aae_video</Filter>
+    </ClCompile>
+    <ClCompile Include="aae_video\emu_vector_draw.cpp">
+      <Filter>Source Files\aae_video</Filter>
+    </ClCompile>
+    <ClCompile Include="aae_video\gl_fbo.cpp">
+      <Filter>Source Files\aae_video</Filter>
+    </ClCompile>
+    <ClCompile Include="aae_video\gl_shader.cpp">
+      <Filter>Source Files\aae_video</Filter>
+    </ClCompile>
+    <ClCompile Include="aae_video\gl_texturing.cpp">
+      <Filter>Source Files\aae_video</Filter>
+    </ClCompile>
+    <ClCompile Include="system\host_view.cpp">
+      <Filter>Source Files\sys_window</Filter>
+    </ClCompile>
+    <ClCompile Include="system\host_window.cpp">
+      <Filter>Source Files\sys_window</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="system\vectrex_controller.png">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="system\vectrex-emu.ico">
+      <Filter>Resource Files</Filter>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="system\host.rc">
+      <Filter>Resource Files</Filter>
+    </ResourceCompile>
+  </ItemGroup>
+</Project>

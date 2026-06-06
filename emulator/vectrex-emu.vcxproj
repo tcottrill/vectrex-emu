@@ -1,0 +1,254 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="3rdparty\glew.h" />
+    <ClInclude Include="3rdparty\json.hpp" />
+    <ClInclude Include="3rdparty\miniz.h" />
+    <ClInclude Include="3rdparty\stb_image.h" />
+    <ClInclude Include="3rdparty\stb_image_write.h" />
+    <ClInclude Include="3rdparty\stb_truetype.h" />
+    <ClInclude Include="3rdparty\tinyxml2.h" />
+    <ClInclude Include="3rdparty\wglew.h" />
+    <ClInclude Include="math\circle.h" />
+    <ClInclude Include="math\MathUtils.h" />
+    <ClInclude Include="math\rect2d.h" />
+    <ClInclude Include="math\rotation_table.h" />
+    <ClInclude Include="project\alg.h" />
+    <ClInclude Include="project\ay8910.h" />
+    <ClInclude Include="project\bios.h" />
+    <ClInclude Include="project\cpu_m6809.h" />
+    <ClInclude Include="project\cpu_control.h" />
+    <ClInclude Include="project\emulator.h" />
+    <ClInclude Include="project\vecx.h" />
+    <ClInclude Include="project\via6522.h" />
+    <ClInclude Include="system\deftypes.h" />
+    <ClInclude Include="system\FrameLimiter.h" />
+    <ClInclude Include="System\framework.h" />
+    <ClInclude Include="system\host_app.h" />
+    <ClInclude Include="system\host_resource.h" />
+    <ClInclude Include="system\host_view.h" />
+    <ClInclude Include="system\host_window.h" />
+    <ClInclude Include="system\iniFile.h" />
+    <ClInclude Include="system\os_basic.h" />
+    <ClInclude Include="system\path_helper.h" />
+    <ClInclude Include="system\sys_fileio.h" />
+    <ClInclude Include="system\sys_log.h" />
+    <ClInclude Include="System\targetver.h" />
+    <ClInclude Include="system\utf8conv.h" />
+    <ClInclude Include="system\wintimer.h" />
+    <ClInclude Include="sys_audio\audio_3d.h" />
+    <ClInclude Include="sys_audio\emptywav.h" />
+    <ClInclude Include="sys_audio\error_wav.h" />
+    <ClInclude Include="sys_audio\mixer.h" />
+    <ClInclude Include="sys_audio\stb.h" />
+    <ClInclude Include="sys_audio\stb_vorbis.h" />
+    <ClInclude Include="sys_audio\xaudio2_backend.h" />
+    <ClInclude Include="sys_fileio\aae_fileio.h" />
+    <ClInclude Include="sys_graphics\colordefs.h" />
+    <ClInclude Include="sys_graphics\debug_draw.h" />
+    <ClInclude Include="sys_graphics\gl_prim_debug.h" />
+    <ClInclude Include="sys_graphics\shader_util.h" />
+    <ClInclude Include="sys_graphics\sys_gl.h" />
+    <ClInclude Include="sys_graphics\sys_texture.h" />
+    <ClInclude Include="sys_graphics\texrect.h" />
+    <ClInclude Include="sys_input\joystick.h" />
+    <ClInclude Include="sys_input\rawinput.h" />
+    <ClInclude Include="sys_input\input_config.h" />
+    <ClInclude Include="aae_video\opengl_renderer.h" />
+    <ClInclude Include="aae_video\gl_fbo.h" />
+    <ClInclude Include="aae_video\gl_shader.h" />
+    <ClInclude Include="aae_video\gl_texturing.h" />
+    <ClInclude Include="aae_video\emu_vector_draw.h" />
+    <ClInclude Include="aae_video\shader_definitions.h" />
+    <ClInclude Include="aae_video\aae_mame_driver.h" />
+    <ClInclude Include="aae_video\config.h" />
+    <ClInclude Include="aae_video\texture_handler.h" />
+    <ClInclude Include="aae_video\aae_compat.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="3rdparty\glew.c" />
+    <ClCompile Include="3rdparty\miniz.c" />
+    <ClCompile Include="3rdparty\tinyxml2.cpp" />
+    <ClCompile Include="project\alg.cpp" />
+    <ClCompile Include="project\ay8910.cpp" />
+    <ClCompile Include="project\cpu_m6809.cpp" />
+    <ClCompile Include="project\emulator.cpp" />
+    <ClCompile Include="project\vecx.cpp" />
+    <ClCompile Include="project\via6522.cpp" />
+    <ClCompile Include="system\iniFile.cpp" />
+    <ClCompile Include="system\host_view.cpp" />
+    <ClCompile Include="system\host_window.cpp" />
+    <ClCompile Include="system\os_basic.cpp" />
+    <ClCompile Include="system\path_helper.cpp" />
+    <ClCompile Include="system\sys_fileio.cpp" />
+    <ClCompile Include="system\sys_log.cpp" />
+    <ClCompile Include="system\winmain.cpp" />
+    <ClCompile Include="system\wintimer.cpp" />
+    <ClCompile Include="sys_audio\audio_3d.cpp" />
+    <ClCompile Include="sys_audio\mixer.cpp" />
+    <ClCompile Include="sys_audio\stb_vorbis.c" />
+    <ClCompile Include="sys_audio\xaudio2_backend.cpp" />
+    <ClCompile Include="sys_fileio\aae_fileio.cpp" />
+    <ClCompile Include="sys_graphics\gl_prim_debug.cpp" />
+    <ClCompile Include="sys_graphics\sys_gl.cpp" />
+    <ClCompile Include="sys_graphics\sys_texture.cpp" />
+    <ClCompile Include="sys_graphics\texrect.cpp" />
+    <ClCompile Include="sys_input\Joystick.cpp" />
+    <ClCompile Include="sys_input\rawinput.cpp" />
+    <ClCompile Include="sys_input\input_config.cpp" />
+    <ClCompile Include="aae_video\opengl_renderer.cpp" />
+    <ClCompile Include="aae_video\gl_fbo.cpp" />
+    <ClCompile Include="aae_video\gl_shader.cpp" />
+    <ClCompile Include="aae_video\gl_texturing.cpp" />
+    <ClCompile Include="aae_video\emu_vector_draw.cpp" />
+    <ClCompile Include="aae_video\aae_compat.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="system\host.rc" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="system\vectrex_controller.png" />
+    <None Include="system\vectrex-emu.ico" />
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <VCProjectVersion>17.0</VCProjectVersion>
+    <Keyword>Win32Proj</Keyword>
+    <ProjectGuid>{ad013cf5-e0b5-4289-b075-586e27a7839c}</ProjectGuid>
+    <RootNamespace>glwindow</RootNamespace>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+    <ProjectName>vectrex-emu</ProjectName>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v143</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v143</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v143</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v143</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <PropertyGroup>
+    <TargetName>vectrex-emu</TargetName>
+  </PropertyGroup>
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="Shared">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;GLEW_STATIC;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+      <AdditionalIncludeDirectories>./sys_video;./system;./;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;GLEW_STATIC;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+      <AdditionalIncludeDirectories>./sys_video;./system;./;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>WIN32;_WINDOWS;GLEW_STATIC;_DEBUG;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+      <AdditionalIncludeDirectories>./aae_video;./math;./font;./3rdparty;./sys_graphics;./system;./sys_fileio;./sys_input;./sys_audio;./;./project;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <LanguageStandard_C>stdc17</LanguageStandard_C>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;GLEW_STATIC;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+      <AdditionalIncludeDirectories>./aae_video;./math;./font;./3rdparty;./sys_graphics;./system;./sys_fileio;./sys_input;./sys_audio;./;./project;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <LanguageStandard_C>stdc17</LanguageStandard_C>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+    </Link>
+  </ItemDefinitionGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>

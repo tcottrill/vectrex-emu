@@ -1,0 +1,49 @@
+# ---- Visual Studio / MSVC build artifacts ----
+.vs/
+enc_temp_folder/
+*.user
+*.suo
+*.obj
+*.pdb
+*.ilk
+*.idb
+*.iobj
+*.ipdb
+*.exe
+*.exp
+*.lib
+*.dll
+*.tlog
+*.lastbuildstate
+*.recipe
+*.VC.db
+*.VC.opendb
+
+# ---- Runtime output ----
+testlog.txt
+vecx.txt
+
+# ---- Build output directories ----
+**/[Dd]ebug/
+/Release/
+
+# ---- Local release-packaging staging (uploaded as a GitHub Release asset, not committed) ----
+/Release to publish/
+
+# ---- x64 build tree ----
+# Ignore the whole tree, then re-include only the published Release payload:
+# the standalone exe plus the runtime data\ folder (artwork, ini, samples).
+/x64/*
+!/x64/Release/
+/x64/Release/*
+!/x64/Release/vectrex-emu.exe
+!/x64/Release/data/
+
+# Ship the roms folder so launchers have somewhere to drop carts, but never the
+# copyrighted ROM images themselves — keep only the placeholder note.
+/x64/Release/data/roms/*
+!/x64/Release/data/roms/Place Roms Here.txt
+
+# snaps\ holds runtime F12 captures; keep the folder, not its contents.
+/x64/Release/data/snaps/*
+!/x64/Release/data/snaps/.gitkeep
