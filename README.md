@@ -170,6 +170,11 @@ emulator/
 data/            roms · artwork · ini · samples  (runtime data beside the exe)
 ```
 
+## Contributors
+
+- **[Tim Cottrill](https://github.com/tcottrill)** ([@tcottrill](https://github.com/tcottrill)) — author and maintainer.
+- **Claude Code** (Anthropic — Claude Opus 4.8) — AI pair programmer.
+
 ## Acknowledgements
 
 - **vecx** by *Valavan Manohararajah* — the Vectrex emulation core this project builds on.
