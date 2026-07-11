@@ -51,6 +51,20 @@ does both. Reuse the exact mask logic already present in the read paths:
   *before* the fallthrough to case 0xF so writes to register $F
   (ORA no-handshake) perform **no** clears, matching the datasheet and the
   PET core.
+- **ORA read restructure (discovered during planning):** the read path puts
+  the CA1/CA2 flag clears inside the shared `case 0xF` block, so reading
+  register $F (no-handshake ORA) wrongly clears the flags today. Move the
+  clears (and the CA2 handshake trigger) up into `case 0x1` before the
+  fallthrough; `case 0xF` becomes a pure pin read.
+
+## Fix 3: CA1/CB1 edge polarity uses wrong PCR bits (discovered during planning)
+
+`via_signal_ca1_edge` selects positive/negative edge with `via_pcr & 0x02`
+(a CA2-mode bit) and `via_signal_cb1_edge` with `via_pcr & 0x20` (a CB2-mode
+bit). Per the datasheet, CA1 polarity is PCR bit 0 (`0x01`) and CB1 polarity
+is PCR bit 4 (`0x10`) — same as the PET core. Currently dormant (nothing in
+vecx.cpp calls these functions), so zero behavior change today; fixed for
+correctness and future wiring (CA1 = PSG IO7).
 
 ## Test suite: `emulator/tests/via6522_tests.cpp`
 

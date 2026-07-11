@@ -228,15 +228,17 @@ uint8_t via_read_reg(uint8_t reg)
 		via_ifr &= ~0x10; // CB1 always cleared
 		int_update();
 	} break;
-	case 0x1:   /* IRA read (handshake CA2 may pulse low) */
+	case 0x1:   /* IRA read (handshake CA2 may pulse low, clears CA1/CA2 flags) */
 		if ((via_pcr & 0x0E) == 0x08) via_ca2 = 0;
-		/* fall through */
-	case 0xF: { /* ORA (no handshake) */
-		data = via_hook_read_port_a(via_orb, via_ora);
-		/* Clear CA1/CA2 interrupt flags if not independent mode */
+		/* Clear CA1/CA2 interrupt flags if not independent mode.
+		   FIX: these clears belong to reg 1 only; reg $F (no handshake)
+		   must not touch the flags, per datasheet. */
 		if ((via_pcr & 0x0A) != 0x02) via_ifr &= ~0x01; // CA2
 		via_ifr &= ~0x02; // CA1 always cleared
 		int_update();
+		/* fall through */
+	case 0xF: { /* ORA (no handshake, no flag clears) */
+		data = via_hook_read_port_a(via_orb, via_ora);
 	} break;
 
 	case 0x2: data = via_ddrb; break;
@@ -290,11 +292,21 @@ void via_write_reg(uint8_t reg, uint8_t data)
 			via_orb = data;
 		}
 		via_hook_on_orb_written(via_orb, via_ora);
+		/* FIX (PET tier-2 port): ORB WRITES clear CB1/CB2 flags just like
+		   reads do (same independent-mode exemption, see the read path). */
+		if ((via_pcr & 0xA0) != 0x20) via_ifr &= ~0x08; // CB2
+		via_ifr &= ~0x10; // CB1 always cleared
+		int_update();
 		if ((via_pcr & 0xE0) == 0x80) via_cb2h = 0; // CB2 handshake low
 		break;
 
 	case 0x1: /* IRA (with CA2 handshake) then fallthrough to ORA */
 		if ((via_pcr & 0x0E) == 0x08) via_ca2 = 0;
+		/* FIX (PET tier-2 port): ORA WRITES clear CA1/CA2 flags just like
+		   reads do; reg $F below stays clear-free per datasheet. */
+		if ((via_pcr & 0x0A) != 0x02) via_ifr &= ~0x01; // CA2
+		via_ifr &= ~0x02; // CA1 always cleared
+		int_update();
 		/* fall through */
 	case 0xF: /* ORA */
 		via_ora = data;
@@ -315,7 +327,13 @@ void via_write_reg(uint8_t reg, uint8_t data)
 		int_update();
 		break;
 	case 0x6: via_t1ll = data; break;
-	case 0x7: via_t1lh = data; break;
+	case 0x7:
+		via_t1lh = data;
+		/* FIX (PET tier-2 port): writing T1L-H also acks the T1 interrupt
+		   ("re-program next interval from inside the IRQ handler" idiom). */
+		via_ifr &= ~0x40;
+		int_update();
+		break;
 
 	case 0x8: via_t2ll = data; break;
 	case 0x9: /* T2CH (load/arm) */
@@ -363,7 +381,8 @@ void via_write_reg(uint8_t reg, uint8_t data)
 void via_signal_ca1_edge(uint8_t new_level)
 {
 	if (new_level != ca1_level) {
-		bool active = ((via_pcr & 0x02) ? new_level : !new_level);
+		/* FIX: CA1 edge polarity is PCR bit 0 (0x02 was a CA2-mode bit). */
+		bool active = ((via_pcr & 0x01) ? new_level : !new_level);
 		if (active) {
 			via_ifr |= 0x02;   // IFR1
 			// FIX: in CA2 handshake-output mode (PCR[3:1]=100), an active CA1
@@ -380,7 +399,8 @@ void via_signal_ca1_edge(uint8_t new_level)
 void via_signal_cb1_edge(uint8_t new_level)
 {
 	if (new_level != cb1_level) {
-		bool active = ((via_pcr & 0x20) ? new_level : !new_level);
+		/* FIX: CB1 edge polarity is PCR bit 4 (0x20 was a CB2-mode bit). */
+		bool active = ((via_pcr & 0x10) ? new_level : !new_level);
 		if (active) {
 			via_ifr |= 0x10;   // IFR4
 			// FIX: in CB2 handshake-output mode (PCR[7:5]=100), an active CB1
