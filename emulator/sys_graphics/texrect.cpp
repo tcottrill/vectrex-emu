@@ -31,32 +31,38 @@
 // -----------------------------------------------------------------------------
 
 #include "texrect.h"
+#include "sys_gl.h"
+#include "shader_util.h"
+
+#include <cstddef>   // offsetof
 
 // ---------------------------------------------------------------------------
-// Rect2 shaders - GLSL 330 compatibility
+// Rect2 shaders - GLSL 330 core
 //
-// Uses explicit attribute locations (not gl_Vertex / gl_MultiTexCoord0)
-// because Rect2 feeds vertex data via glVertexAttribPointer, not the
-// fixed-function vertex arrays.
+// Explicit attribute locations + an explicit uProj uniform (no
+// gl_ModelViewProjectionMatrix), with geometry fed from a VAO/VBO. Fully
+// core-profile; the caller supplies the projection via Render(mvp).
 // ---------------------------------------------------------------------------
 
 static const char* rect2_vs = R"glsl(
-#version 330 compatibility
+#version 330 core
 
 layout(location = 0) in vec2 a_position;
 layout(location = 1) in vec2 a_texcoord;
 
 out vec2 v_texcoord;
 
+uniform mat4 uProj;
+
 void main()
 {
-    gl_Position = gl_ModelViewProjectionMatrix * vec4(a_position, 0.0, 1.0);
+    gl_Position = uProj * vec4(a_position, 0.0, 1.0);
     v_texcoord = a_texcoord;
 }
 )glsl";
 
 static const char* rect2_fs = R"glsl(
-#version 330 compatibility
+#version 330 core
 
 in vec2 v_texcoord;
 out vec4 FragColor;
@@ -75,15 +81,29 @@ Rect2::Rect2(int screen_width, int screen_height, float aspectRatio, int rotated
 	GLuint fs = CompileShader(GL_FRAGMENT_SHADER, rect2_fs, "Rect2 FS");
 	prog_ = LinkShaderProgram(vs, fs);
 
-	// cache attribute/uniform locations
-	pos_loc_ = glGetAttribLocation(prog_, "a_position");
-	texcoord_loc_ = glGetAttribLocation(prog_, "a_texcoord");
+	// cache uniform locations
 	sampler_loc_ = glGetUniformLocation(prog_, "u_texture");
+	uproj_loc_   = glGetUniformLocation(prog_, "uProj");
 
 	// bind sampler once to texture-unit 0
 	glUseProgram(prog_);
 	glUniform1i(sampler_loc_, 0);
 	glUseProgram(0);
+
+	// Core-profile geometry: a VAO/VBO holding the 4 interleaved pos+uv corners
+	// (_Point2DA: x,y,tx,ty), drawn as a triangle fan. Replaces the client-side
+	// vertex arrays the old Render() passed to glVertexAttribPointer.
+	glGenVertexArrays(1, &vao_);
+	glGenBuffers(1, &vbo_);
+	glBindVertexArray(vao_);
+	glBindBuffer(GL_ARRAY_BUFFER, vbo_);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(verts_), nullptr, GL_DYNAMIC_DRAW);
+	glEnableVertexAttribArray(0);
+	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(_Point2DA), (void*)offsetof(_Point2DA, x));
+	glEnableVertexAttribArray(1);
+	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(_Point2DA), (void*)offsetof(_Point2DA, tx));
+	glBindVertexArray(0);
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
 
 	LOG_INFO("Rect2 shader program initialized");
 	// Call the screen rect setup immediately
@@ -91,6 +111,8 @@ Rect2::Rect2(int screen_width, int screen_height, float aspectRatio, int rotated
 }
 
 Rect2::~Rect2() {
+	if (vao_) { glDeleteVertexArrays(1, &vao_); vao_ = 0; }
+	if (vbo_) { glDeleteBuffers(1, &vbo_); vbo_ = 0; }
 	if (prog_) {
 		glDeleteProgram(prog_);
 		LOG_INFO("Rect2 shader program deleted");
@@ -111,39 +133,41 @@ void Rect2::TopLeft(float x, float y) { TopLeft(x, y, 0.0f, 1.0f); }
 void Rect2::TopRight(float x, float y) { TopRight(x, y, 1.0f, 1.0f); }
 void Rect2::BottomRight(float x, float y) { BottomRight(x, y, 1.0f, 0.0f); }
 
-void Rect2::Render() {
-	// scaley is no longer used - the full 1024x1024 FBO is mapped
-	// onto the aspect-correct screen rect computed by UpdateScreenRect.
-	// The 4:3 squish happens naturally because the rect is 4:3
-	// and the texture is square.
-	GLfloat positions[8] = {
-		verts_[0].x, verts_[0].y,
-		verts_[1].x, verts_[1].y,
-		verts_[2].x, verts_[2].y,
-		verts_[3].x, verts_[3].y
-	};
-	GLfloat texcoords[8] = {
-		verts_[0].tx, verts_[0].ty,
-		verts_[1].tx, verts_[1].ty,
-		verts_[2].tx, verts_[2].ty,
-		verts_[3].tx, verts_[3].ty
-	};
-	static const GLushort idx[6] = { 0,1,2, 2,3,0 };
-
+void Rect2::Render(const float* mvp) {
+	// The full 1024x1024 FBO is mapped onto the aspect-correct screen rect
+	// computed by UpdateScreenRect; the 4:3 squish happens naturally because the
+	// rect is 4:3 and the texture is square. mvp (column-major 4x4) is the caller's
+	// pixel-space ortho (previously the fixed-function gl_ModelViewProjectionMatrix).
+	// Corners 0..3 (BL,TL,TR,BR) draw as a triangle fan.
 	glUseProgram(prog_);
+	glUniformMatrix4fv(uproj_loc_, 1, GL_FALSE, mvp);
 	glActiveTexture(GL_TEXTURE0);
 
-	glEnableVertexAttribArray(pos_loc_);
-	glVertexAttribPointer(pos_loc_, 2, GL_FLOAT, GL_FALSE, 0, positions);
+	glBindVertexArray(vao_);
+	glBindBuffer(GL_ARRAY_BUFFER, vbo_);
+	glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(verts_), verts_);
+	glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
 
-	glEnableVertexAttribArray(texcoord_loc_);
-	glVertexAttribPointer(texcoord_loc_, 2, GL_FLOAT, GL_FALSE, 0, texcoords);
-
-	glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_SHORT, idx);
-
-	glDisableVertexAttribArray(pos_loc_);
-	glDisableVertexAttribArray(texcoord_loc_);
+	glBindVertexArray(0);
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
 	glUseProgram(0);
+}
+
+void Rect2::RenderGeometry() {
+	glBindVertexArray(vao_);
+	glBindBuffer(GL_ARRAY_BUFFER, vbo_);
+	glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(verts_), verts_);
+	glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
+
+	glBindVertexArray(0);
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+}
+
+void Rect2::GetScreenRect(float* x, float* y, float* w, float* h) const {
+	if (x) *x = rect_x_;
+	if (y) *y = rect_y_;
+	if (w) *w = rect_w_;
+	if (h) *h = rect_h_;
 }
 
 void Rect2::UpdateScreenRect(int screen_width, int screen_height, float aspectRatio, int rotated)
@@ -184,6 +208,11 @@ void Rect2::UpdateScreenRect(int screen_width, int screen_height, float aspectRa
 	else {
 		xadj = ((float)screen_width - used_width) / 2.0f;
 	}
+
+	rect_x_ = xadj;
+	rect_y_ = yadj;
+	rect_w_ = used_width;
+	rect_h_ = used_height;
 
 	int v = 8 * rotated;
 

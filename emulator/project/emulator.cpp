@@ -52,9 +52,11 @@
 #include "aae_fileio.h"   // load_sample_core (ambient flyback sample)
 #include "emulator.h"
 
-// [vectrex-port] AAE vector-glow renderer (bloom + phosphor trail + OVERLAY2 gel).
+// [vectrex-port] AAE beam renderer + glow pipeline (bloom + phosphor trail + OVERLAY2 gel).
 #include "opengl_renderer.h"   // init_gl, set_render, render, emulator_on_window_resize, glcode_vector_hard_clear_fbo1
-#include "emu_vector_draw.h"   // add_line, cache_clear
+#include "emu_vector_draw.h"   // add_line, add_dot, cache_clear
+#include "aae_mame_driver.h"   // config, art_loaded[], game_rect_*
+#include "framework.h"         // GLEW + SCREEN_W / SCREEN_H
 #include "texture_handler.h"   // art_tex[], art_loaded[] (OVERLAY2 gel slot)
 #include "stb_image.h"         // overlay decode (implementation lives in sys_texture.cpp)
 #include <string>
@@ -177,12 +179,12 @@ void osint_render(void)
 {
 	s_rendered_this_run = true;   // a Vectrex frame completed -> a fresh image is drawn
 
-	// [vectrex-port] Drive the AAE vector-glow pipeline instead of immediate-mode
-	// lines. Vectrex beam coordinates map into the renderer's 1024x1024 Y-up FBO
-	// space; the beam is monochrome (white) with per-vector brightness carried as
-	// 'intensity'. render()/final_render() apply the phosphor trail, glow bloom,
-	// and OVERLAY2 color gel, then blit the composite to the backbuffer. The host
-	// loop calls GLSwapBuffers() afterwards.
+	// [vectrex-port] Drive the AAE beam renderer + glow pipeline. Vectrex beam
+	// coordinates map into the renderer's 1024x1024 Y-up FBO space; the beam is
+	// monochrome (white) with per-vector brightness carried as 'intensity'.
+	// render() draws the coverage-AA beams, then final_render() applies the
+	// phosphor trail, glow bloom and OVERLAY2 color gel and blits the composite
+	// to the backbuffer. The host loop calls GLSwapBuffers() afterwards.
 
 	// Keep the AAE present rectangle in sync with the host window size.
 	static int s_lastW = -1, s_lastH = -1;
@@ -202,16 +204,16 @@ void osint_render(void)
 	// flips vertically). A zero-length vector is only a STANDALONE dot if it does
 	// not sit on a line-segment endpoint -- on moving objects the beam pauses at
 	// each corner, emitting a zero-length vector right on a line vertex (a "cap"),
-	// which draw_all() already draws at the endpoint size. Sizing those by the dot
-	// slider is wrong, so we skip them. Pass 1 records line endpoints; pass 2 keeps
-	// only the dots that are not on one.
+	// which the beam renderer already rounds with its own join/end-cap discs.
+	// Sizing those by the dot slider is wrong, so we skip them. Pass 1 records
+	// line endpoints; pass 2 keeps only the dots that are not on one.
 	static std::unordered_set<uint64_t> lineEnds;
 	lineEnds.clear();
 	auto packPt = [](long x, long y) -> uint64_t {
 		return ((uint64_t)(uint32_t)x << 32) | (uint32_t)y;
 		};
 
-	// Pass 1: real line segments -> line buffer; record both endpoints.
+	// Pass 1: real line segments -> beam lines; record both endpoints.
 	for (long v = 0; v < vector_draw_cnt; v++) {
 		if (vectors_draw[v].x0 == vectors_draw[v].x1 &&
 			vectors_draw[v].y0 == vectors_draw[v].y1)
@@ -226,35 +228,25 @@ void osint_render(void)
 		lineEnds.insert(packPt(vectors_draw[v].x1, vectors_draw[v].y1));
 	}
 
-	// Pass 2: zero-length vectors NOT on a line endpoint are true standalone dots.
-	// (Zero-length vectors that sit on a line endpoint are beam-pause "caps" and
-	// are already drawn by draw_all() at the endpoint size, so skip them.)
+	// Pass 2: zero-length vectors NOT on a line endpoint are true standalone dots,
+	// drawn as round beam discs at the dot-size slider.
+	const float dot_size = emulator_get_dot_size();
 	for (long v = 0; v < vector_draw_cnt; v++) {
 		if (!(vectors_draw[v].x0 == vectors_draw[v].x1 &&
 			vectors_draw[v].y0 == vectors_draw[v].y1))
 			continue; // line -> pass 1
 		if (lineEnds.find(packPt(vectors_draw[v].x0, vectors_draw[v].y0)) != lineEnds.end())
-			continue; // cap on a line endpoint -> draw_all() covers it
+			continue; // cap on a line endpoint -> the beam's end-cap covers it
 
 		int intensity = (int)vectors_draw[v].color << 1;
 		if (intensity > 255) intensity = 255;
 		add_dot((float)(vectors_draw[v].x0 * scaleX), (float)(vectors_draw[v].y0 * scaleY),
-			intensity, 0xFFFFFFFFu);
+			intensity, 0xFFFFFFFFu, dot_size);
 	}
 
-	// Line strokes (line-width slider) with rounded gap-fill points at each line
-	// vertex (endpoint-size slider). AAE only sets these once in init_gl, so
-	// re-apply each frame for the live sliders.
-	glLineWidth(config.linewidth);
-	glPointSize(config.pointsize);
-	draw_all();
-
-	// Single dots from their own buffer, at the dot-size slider -- independent of
-	// the line endpoint size above. Same FBO so glow/trail/overlay still apply.
-	draw_dots((float)emulator_get_dot_size());
-
-	// Composite phosphor trail + glow bloom + OVERLAY2 gel -> FBO4 -> backbuffer.
-	final_render(game_rect_left, game_rect_right, game_rect_bottom, game_rect_top);
+	// Draw the beams into FBO1, then composite phosphor trail + glow bloom +
+	// OVERLAY2 gel -> FBO4 -> backbuffer.
+	render();
 }
 
 // Runs exactly ONE emulated frame, then returns to the host loop (winmain),
@@ -406,12 +398,6 @@ void emulator_init(int argc, char** argv)
 	if (osint_defaults()) {
 		exit(0);
 	}
-
-	// Disable vsync
-	wglSwapIntervalEXT(0);
-
-	// Disable Texturing
-	glDisable(GL_TEXTURE_2D);
 
 	/* determine a set of colors to use based */
 	osint_gencolors();
@@ -571,26 +557,64 @@ void emulator_set_glow(int amt)
 	emulator_apply_glow();
 }
 
-static float s_dot_size = 2.0f;   // single-dot point size (1.0..10.0)
+static float s_dot_size = 2.0f;   // single-dot diameter (1.0..10.0)
 
-static float clampf_1_10(float w) { return w < 1.0f ? 1.0f : (w > 10.0f ? 10.0f : w); }
+static float clampf(float v, float lo, float hi) { return v < lo ? lo : (v > hi ? hi : v); }
 
 float emulator_get_line_width(void) { return config.linewidth; }
-void  emulator_set_line_width(float w) { config.linewidth = clampf_1_10(w); }
-
-float emulator_get_point_size(void) { return config.pointsize; }   // line endpoint size
-void  emulator_set_point_size(float w) { config.pointsize = clampf_1_10(w); }
+void  emulator_set_line_width(float w) { config.linewidth = clampf(w, 1.0f, 10.0f); }
 
 float emulator_get_dot_size(void) { return s_dot_size; }         // single-dot size
-void  emulator_set_dot_size(float w) { s_dot_size = clampf_1_10(w); }
+void  emulator_set_dot_size(float w) { s_dot_size = clampf(w, 1.0f, 10.0f); }
+
+// Beam edge feather (AAE "BEAM SMOOTHING", 0.4..2.0) and corner disc size
+// (AAE "BEAM CORNERSIZE", 0.3..2.5).
+float emulator_get_smoothing(void) { return config.line_smoothing; }
+void  emulator_set_smoothing(float v) { config.line_smoothing = clampf(v, 0.4f, 2.0f); }
+
+float emulator_get_corner(void) { return config.corner_strength; }
+void  emulator_set_corner(float v) { config.corner_strength = clampf(v, 0.3f, 2.5f); }
+
+// Glow blur path: 0 = classic accumulate blur, 1 = dual-filter pyramid.
+int  emulator_get_glow_filter(void) { return config.glow_filter; }
+void emulator_set_glow_filter(int f) { config.glow_filter = f ? 1 : 0; }
+
+// Pyramid glow tuning (ini only). Ranges from AAE's VECTOR MONITOR SETUP menu.
+void emulator_set_glow2(float gain, float spread, float tail, float core)
+{
+	config.glow2_gain   = clampf(gain,   0.0f, 30.0f);
+	config.glow2_spread = clampf(spread, 0.2f,  3.0f);
+	config.glow2_tail   = clampf(tail,   0.0f,  2.0f);
+	config.glow2_core   = clampf(core,   0.0f,  2.0f);
+}
+void emulator_get_glow2(float* gain, float* spread, float* tail, float* core)
+{
+	if (gain)   *gain   = config.glow2_gain;
+	if (spread) *spread = config.glow2_spread;
+	if (tail)   *tail   = config.glow2_tail;
+	if (core)   *core   = config.glow2_core;
+}
+
+// Phosphor trail: on/off (the toggle) and persistence level 1..3 (LITTLE / MORE /
+// MAX, per-frame decay 0.825 / 0.86 / 0.93) compose as vectrail = on ? level : 0.
+static int  s_trail_level = 1;
+static bool s_trail_on = false;
+static void emulator_apply_trail(void) { config.vectrail = s_trail_on ? s_trail_level : 0; }
+
+int  emulator_get_trail_level(void) { return s_trail_level; }
+void emulator_set_trail_level(int level)
+{
+	s_trail_level = level < 1 ? 1 : (level > 3 ? 3 : level);
+	emulator_apply_trail();
+}
 
 // Toggle a video effect. which: 0=glow, 1=trail, 2=overlay. Returns new state (0/1).
 int emulator_toggle_video(int which)
 {
 	switch (which) {
-	case 0: s_glow_on = !s_glow_on; emulator_apply_glow();   return s_glow_on ? 1 : 0;
-	case 1: config.vectrail = config.vectrail ? 0 : 1;       return config.vectrail ? 1 : 0;
-	case 2: config.overlay = config.overlay ? 0 : 1;       return config.overlay ? 1 : 0;
+	case 0: s_glow_on = !s_glow_on; emulator_apply_glow();     return s_glow_on ? 1 : 0;
+	case 1: s_trail_on = !s_trail_on; emulator_apply_trail();  return s_trail_on ? 1 : 0;
+	case 2: config.overlay = config.overlay ? 0 : 1;           return config.overlay ? 1 : 0;
 	}
 	return -1;
 }
@@ -600,7 +624,7 @@ int emulator_get_video(int which)
 {
 	switch (which) {
 	case 0: return s_glow_on ? 1 : 0;
-	case 1: return config.vectrail ? 1 : 0;
+	case 1: return s_trail_on ? 1 : 0;
 	case 2: return (config.overlay && art_loaded[1]) ? 1 : 0;
 	}
 	return -1;
@@ -611,9 +635,9 @@ int emulator_get_video(int which)
 void emulator_set_video(int which, int on)
 {
 	switch (which) {
-	case 0: s_glow_on = (on != 0); emulator_apply_glow();        break;
-	case 1: config.vectrail = on ? 1 : 0;                        break;
-	case 2: config.overlay = (on && art_loaded[1]) ? 1 : 0;     break;
+	case 0: s_glow_on = (on != 0); emulator_apply_glow();      break;
+	case 1: s_trail_on = (on != 0); emulator_apply_trail();    break;
+	case 2: config.overlay = (on && art_loaded[1]) ? 1 : 0;   break;
 	}
 }
 

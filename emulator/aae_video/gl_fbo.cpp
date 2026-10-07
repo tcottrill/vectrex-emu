@@ -35,32 +35,32 @@
 #include "sys_gl.h"
 #include "gl_fbo.h"
 #include "sys_log.h"
-#include "aae_mame_driver.h"
-#include "iniFile.h"
+#include <algorithm>
 #include <array>
 #include <initializer_list>
 
-#pragma warning(disable : 4305 4244)
 
 // ---------------------------------------------------------------------------
 // FBO and texture handle definitions
 // ---------------------------------------------------------------------------
-GLuint fbo1       = 0;
-GLuint fbo2       = 0;
-GLuint fbo3       = 0;
-GLuint fbo4       = 0;
-GLuint fbo_raster = 0;
+rfbo_t fbo_pyr[GLOW_PYR_LEVELS] = {};
+rtex_t img_pyr[GLOW_PYR_LEVELS] = {};
 
-GLuint img1a = 0;
-GLuint img1b = 0;
-GLuint img1c = 0;
-GLuint img2a = 0;
-GLuint img2b = 0;
-GLuint img3a = 0;
-GLuint img3b = 0;
-GLuint img4a = 0;
-GLuint img4b = 0;
-GLuint img5a = 0;
+rfbo_t fbo1       = 0;
+rfbo_t fbo2       = 0;
+rfbo_t fbo3       = 0;
+rfbo_t fbo4       = 0;
+
+rtex_t img1a = 0;
+rtex_t img1b = 0;
+rtex_t img1c = 0;
+rtex_t img2a = 0;
+rtex_t img2b = 0;
+rtex_t img3a = 0;
+rtex_t img3b = 0;
+rtex_t img4a = 0;
+rtex_t img4b = 0;
+
 
 // Pipeline texture dimensions (fixed for the whole pipeline).
 // FBO1/FBO4 : 1024x1024 - main render and final composite targets.
@@ -91,21 +91,21 @@ static float get_max_anisotropy()
 // Queries and logs the completeness status of the currently bound FBO.
 // Returns the raw GL status enum so callers can branch on it if needed.
 // ---------------------------------------------------------------------------
-GLenum CHECK_FRAMEBUFFER_STATUS()
+static GLenum CHECK_FRAMEBUFFER_STATUS()
 {
-    GLenum status = glCheckFramebufferStatusEXT(GL_FRAMEBUFFER_EXT);
+    GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
     switch (status)
     {
-    case GL_FRAMEBUFFER_COMPLETE_EXT:
+    case GL_FRAMEBUFFER_COMPLETE:
         LOG_INFO("FBO complete.");
         break;
-    case GL_FRAMEBUFFER_UNSUPPORTED_EXT:
+    case GL_FRAMEBUFFER_UNSUPPORTED:
         LOG_ERROR("FBO error: GL_FRAMEBUFFER_UNSUPPORTED_EXT");
         break;
-    case GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT_EXT:
+    case GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT:
         LOG_ERROR("FBO error: GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT_EXT");
         break;
-    case GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT_EXT:
+    case GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT:
         LOG_ERROR("FBO error: GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT_EXT");
         break;
     case GL_FRAMEBUFFER_INCOMPLETE_DIMENSIONS_EXT:
@@ -114,10 +114,10 @@ GLenum CHECK_FRAMEBUFFER_STATUS()
     case GL_FRAMEBUFFER_INCOMPLETE_FORMATS_EXT:
         LOG_ERROR("FBO error: GL_FRAMEBUFFER_INCOMPLETE_FORMATS_EXT");
         break;
-    case GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER_EXT:
+    case GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER:
         LOG_ERROR("FBO error: GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER_EXT");
         break;
-    case GL_FRAMEBUFFER_INCOMPLETE_READ_BUFFER_EXT:
+    case GL_FRAMEBUFFER_INCOMPLETE_READ_BUFFER:
         LOG_ERROR("FBO error: GL_FRAMEBUFFER_INCOMPLETE_READ_BUFFER_EXT");
         break;
     default:
@@ -207,7 +207,7 @@ static GLuint create_texture(float w, float h, bool mipmaps = true, bool use_alp
     {
         // Generate placeholder mips now. Real mips are rebuilt each frame
         // by fbo_generate_mipmaps() after rendering.
-        glGenerateMipmapEXT(GL_TEXTURE_2D);
+        glGenerateMipmap(GL_TEXTURE_2D);
     }
 
     return tex;
@@ -222,40 +222,46 @@ static GLuint create_texture(float w, float h, bool mipmaps = true, bool use_alp
 //   - An array of {width, height} for that attachment.
 //   - A bool indicating whether this attachment needs an alpha channel.
 //
-// Attachments are assigned to GL_COLOR_ATTACHMENT0_EXT, _1_EXT, _2_EXT, ...
+// Attachments are assigned to GL_COLOR_ATTACHMENT0, _1_EXT, _2_EXT, ...
 // in the order they appear in the list.
 //
 // The FBO completeness status is checked and logged after creation.
 // ---------------------------------------------------------------------------
 struct FboAttachment
 {
-    GLuint*               texOut;
+    rtex_t*               texOut;
     std::array<float, 2>  dims;
     bool                  use_alpha;
+    // Default true preserves the historical behavior. The glow pyramid passes
+    // false: its levels are sampled at fixed 2:1 ratios where plain bilinear
+    // IS the correct box prefilter, and a mip-free texture can never sample a
+    // stale mip - the failure mode that forces per-frame glGenerateMipmap
+    // everywhere else.
+    bool                  mipmaps = true;
 };
 
-static void create_fbo(GLuint& fbo,
+static void create_fbo(rfbo_t& fbo,
     std::initializer_list<FboAttachment> attachments)
 {
-    glGenFramebuffersEXT(1, &fbo);
-    glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, fbo);
+    glGenFramebuffers(1, &fbo);
+    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
 
     int slot = 0;
     for (const auto& a : attachments)
     {
-        *a.texOut = create_texture(a.dims[0], a.dims[1], true, a.use_alpha);
+        *a.texOut = create_texture(a.dims[0], a.dims[1], a.mipmaps, a.use_alpha);
 
         // Attach mip level 0. The rest of the mip chain is regenerated
         // separately after rendering (see fbo_generate_mipmaps).
-        glFramebufferTexture2DEXT(GL_FRAMEBUFFER_EXT,
-            GL_COLOR_ATTACHMENT0_EXT + slot,
+        glFramebufferTexture2D(GL_FRAMEBUFFER,
+            GL_COLOR_ATTACHMENT0 + slot,
             GL_TEXTURE_2D, *a.texOut, 0);
 
         ++slot;
     }
 
     CHECK_FRAMEBUFFER_STATUS();
-    glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, 0);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
 // ---------------------------------------------------------------------------
@@ -264,12 +270,12 @@ static void create_fbo(GLuint& fbo,
 // rendering into an FBO and before sampling from those textures so that
 // trilinear and anisotropic filtering work correctly.
 // ---------------------------------------------------------------------------
-void fbo_generate_mipmaps(std::initializer_list<GLuint> textures)
+void fbo_generate_mipmaps(std::initializer_list<rtex_t> textures)
 {
-    for (GLuint tex : textures)
+    for (rtex_t tex : textures)
     {
         glBindTexture(GL_TEXTURE_2D, tex);
-        glGenerateMipmapEXT(GL_TEXTURE_2D);
+        glGenerateMipmap(GL_TEXTURE_2D);
     }
     glBindTexture(GL_TEXTURE_2D, 0);
 }
@@ -325,67 +331,25 @@ void fbo_init()
 		{ &img4b, { width,  height  }, true }       // attachment 1: crt scratch area for overlay rendering (pre-backdrop)
     });
 
+    // Glow pyramid - the dual-filter blur chain ([main] glow_filter=1).
+    // 256 (img3a) -> 128 -> 64 -> 32 -> 64 -> 128 -> 256 (img3b). Five tiny
+    // single-attachment FBOs, ~160 KB of RGB8 total, always allocated so the
+    // ini toggle needs no re-init. mipmaps=false throughout: every sampling
+    // step is an exact 2:1 or 1:2 ratio where bilinear alone is correct, and
+    // it is precisely what lets this path skip glGenerateMipmap per frame.
+    static constexpr int kPyrSize[GLOW_PYR_LEVELS] = { 128, 64, 32, 64, 128 };
+    for (int i = 0; i < GLOW_PYR_LEVELS; ++i)
+    {
+        create_fbo(fbo_pyr[i], {
+            { &img_pyr[i], { (float)kPyrSize[i], (float)kPyrSize[i] }, false, false }
+        });
+    }
+
     LOG_INFO("fbo_init: done.");
 }
 
-// ---------------------------------------------------------------------------
-// fbo_init_raster
-// Allocates fbo_raster and img5a at the current game's native resolution
-// scaled by the configured prescale value.
-//
-// Must be called AFTER a game is fully set up (Machine->gamedrv valid).
-// Releases any previous fbo_raster allocation before creating new ones,
-// so it is safe to call on each game start.
-//
-// Uses GL_RGBA8 since the raster blit path may use alpha blending.
-// ---------------------------------------------------------------------------
-void fbo_init_raster()
-{
-    // Release any previous allocation from a prior game.
-    fbo_shutdown_raster();
-
-    if (!Machine || !Machine->gamedrv || !Machine->drv)
-    {
-        LOG_ERROR("fbo_init_raster: Machine, gamedrv, or drv is null - cannot allocate raster FBO.");
-        return;
-    }
-
-    const rectangle& va = Machine->drv->visible_area;
-
-    int w = (va.max_x - va.min_x + 1);
-    int h = (va.max_y - va.min_y + 1);
-
-    if (w <= 0 || h <= 0)
-    {
-        LOG_ERROR("fbo_init_raster: invalid visible area (%d,%d)-(%d,%d)",
-            va.min_x, va.min_y, va.max_x, va.max_y);
-        return;
-    }
-
-    // Match the final oriented raster image shape.
-    // If the game uses SWAP_XY (90/270 degree rotation), the output
-    // texture is transposed: width becomes height and vice versa.
-    if (Machine->drv->rotation & ORIENTATION_SWAP_XY)
-    {
-        const int t = w;
-        w = h;
-        h = t;
-    }
-
-    const float prescale = config.prescale;
-
-    const float rw = static_cast<float>(w) * prescale;
-    const float rh = static_cast<float>(h) * prescale;
-
-    LOG_INFO("fbo_init_raster: visible_area=(%d,%d)-(%d,%d) rotated_size=%d x %d scale=%.1f alloc=%.0f x %.0f rot=%d",
-        va.min_x, va.min_y, va.max_x, va.max_y,
-        w, h, prescale, rw, rh, Machine->drv->rotation);
-
-    // RGBA - raster surface; alpha used by the blit/composite step.
-    create_fbo(fbo_raster, {
-        { &img5a, { rw, rh }, true }                // attachment 0: scaled game-native raster surface
-    });
-}
+// [vectrex-port] removed: fbo_init_raster(), fbo_resize_mono() (raster and
+// mono/colour CRT monitor targets; the Vectrex is a B/W vector display).
 
 // ---------------------------------------------------------------------------
 // fbo_shutdown
@@ -396,7 +360,7 @@ void fbo_shutdown()
 {
     LOG_INFO("fbo_shutdown: releasing fbo1..fbo4 and all textures.");
 
-    GLuint textures[] = { img1a, img1b, img1c, img2a, img2b, img3a, img3b, img4a, img4b };
+    rtex_t textures[] = { img1a, img1b, img1c, img2a, img2b, img3a, img3b, img4a, img4b };
     glDeleteTextures(9, textures);
 
     img1a = img1b = img1c = 0;
@@ -405,33 +369,16 @@ void fbo_shutdown()
     img4a = 0;
     img4b = 0;
 
-    GLuint fbos[] = { fbo1, fbo2, fbo3, fbo4 };
-    glDeleteFramebuffersEXT(4, fbos);
+    rfbo_t fbos[] = { fbo1, fbo2, fbo3, fbo4 };
+    glDeleteFramebuffers(4, fbos);
 
     fbo1 = fbo2 = fbo3 = fbo4 = 0;
 
-    // Also release the raster FBO if it was allocated.
-    fbo_shutdown_raster();
+    // Glow pyramid teardown.
+    glDeleteTextures(GLOW_PYR_LEVELS, img_pyr);
+    glDeleteFramebuffers(GLOW_PYR_LEVELS, fbo_pyr);
+    for (int i = 0; i < GLOW_PYR_LEVELS; ++i) { img_pyr[i] = 0; fbo_pyr[i] = 0; }
 }
 
 
-// ---------------------------------------------------------------------------
-// fbo_shutdown_raster
-// Releases fbo_raster and img5a. Safe to call even if never allocated
-// (handles are 0). Call before switching games so the next fbo_init_raster()
-// gets the new game's correct dimensions.
-// ---------------------------------------------------------------------------
-void fbo_shutdown_raster()
-{
-    if (img5a != 0)
-    {
-        glDeleteTextures(1, &img5a);
-        img5a = 0;
-    }
-
-    if (fbo_raster != 0)
-    {
-        glDeleteFramebuffersEXT(1, &fbo_raster);
-        fbo_raster = 0;
-    }
-}
+// [vectrex-port] removed: fbo_shutdown_raster() (no raster targets).

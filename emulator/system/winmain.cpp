@@ -38,10 +38,18 @@ static int   vx_get_glow(void)                { return emulator_get_glow(); }
 static void  vx_set_glow(int a)               { emulator_set_glow(a); }
 static float vx_get_line_width(void)          { return emulator_get_line_width(); }
 static void  vx_set_line_width(float w)       { emulator_set_line_width(w); }
-static float vx_get_point_size(void)          { return emulator_get_point_size(); }
-static void  vx_set_point_size(float w)       { emulator_set_point_size(w); }
 static float vx_get_dot_size(void)            { return emulator_get_dot_size(); }
 static void  vx_set_dot_size(float w)         { emulator_set_dot_size(w); }
+static float vx_get_smoothing(void)           { return emulator_get_smoothing(); }
+static void  vx_set_smoothing(float v)        { emulator_set_smoothing(v); }
+static float vx_get_corner(void)              { return emulator_get_corner(); }
+static void  vx_set_corner(float v)           { emulator_set_corner(v); }
+static int   vx_get_glow_filter(void)         { return emulator_get_glow_filter(); }
+static void  vx_set_glow_filter(int f)        { emulator_set_glow_filter(f); }
+static int   vx_get_trail_level(void)         { return emulator_get_trail_level(); }
+static void  vx_set_trail_level(int l)        { emulator_set_trail_level(l); }
+static void  vx_get_glow2(float* g, float* s, float* t, float* c) { emulator_get_glow2(g, s, t, c); }
+static void  vx_set_glow2(float g, float s, float t, float c)     { emulator_set_glow2(g, s, t, c); }
 static void  vx_set_frame_rate(double hz)     { emulator_set_frame_rate(hz); }
 static int   vx_get_volume(void)              { return emulator_get_volume(); }
 static void  vx_set_volume(int pct)           { emulator_set_volume(pct); }
@@ -65,7 +73,10 @@ static const HostApp kVectrex = {
     vx_load_overlay, vx_clear_overlay, vx_has_overlay, vx_toggle_video,
     vx_get_video, vx_set_video,
     vx_get_glow, vx_set_glow, vx_get_line_width, vx_set_line_width,
-    vx_get_point_size, vx_set_point_size, vx_get_dot_size, vx_set_dot_size,
+    vx_get_dot_size, vx_set_dot_size,
+    vx_get_smoothing, vx_set_smoothing, vx_get_corner, vx_set_corner,
+    vx_get_glow_filter, vx_set_glow_filter, vx_get_trail_level, vx_set_trail_level,
+    vx_get_glow2, vx_set_glow2,
     vx_set_frame_rate,
     vx_get_volume, vx_set_volume,
     vx_has_ambient, vx_get_ambient_enabled, vx_set_ambient_enabled,

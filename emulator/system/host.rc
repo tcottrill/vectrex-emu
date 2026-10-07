@@ -60,7 +60,7 @@ END
 // ===== Settings dialogs: one focused window per section ======================
 
 // ----- Video -----
-IDD_PAGE_VIDEO DIALOGEX 0, 0, 248, 172
+IDD_PAGE_VIDEO DIALOGEX 0, 0, 248, 250
 STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Vector Graphics"
 FONT 8, "MS Shell Dlg"
@@ -68,20 +68,27 @@ BEGIN
     LTEXT           "Glow amount:", IDC_STATIC, 10, 14, 58, 8
     CONTROL         "", IDC_GLOW_SLIDER, "msctls_trackbar32", TBS_HORZ | TBS_AUTOTICKS | WS_TABSTOP, 72, 10, 120, 18
     LTEXT           "0", IDC_GLOW_VALUE, 198, 14, 40, 8
-    LTEXT           "Line width:", IDC_STATIC, 10, 40, 58, 8
-    CONTROL         "", IDC_LINEWIDTH_SLIDER, "msctls_trackbar32", TBS_HORZ | TBS_AUTOTICKS | WS_TABSTOP, 72, 36, 120, 18
-    LTEXT           "1.0", IDC_LINEWIDTH_VALUE, 198, 40, 40, 8
-    LTEXT           "Endpoint size:", IDC_STATIC, 10, 66, 58, 8
-    CONTROL         "", IDC_POINT_SLIDER, "msctls_trackbar32", TBS_HORZ | TBS_AUTOTICKS | WS_TABSTOP, 72, 62, 120, 18
-    LTEXT           "1.0", IDC_POINT_VALUE, 198, 66, 40, 8
-    LTEXT           "Dot size:", IDC_STATIC, 10, 92, 58, 8
-    CONTROL         "", IDC_DOT_SLIDER, "msctls_trackbar32", TBS_HORZ | TBS_AUTOTICKS | WS_TABSTOP, 72, 88, 120, 18
-    LTEXT           "2.0", IDC_DOT_VALUE, 198, 92, 40, 8
+    LTEXT           "Glow filter:", IDC_STATIC, 10, 40, 58, 8
+    COMBOBOX        IDC_GLOWFILTER_COMBO, 76, 38, 112, 60, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    LTEXT           "Line width:", IDC_STATIC, 10, 66, 58, 8
+    CONTROL         "", IDC_LINEWIDTH_SLIDER, "msctls_trackbar32", TBS_HORZ | TBS_AUTOTICKS | WS_TABSTOP, 72, 62, 120, 18
+    LTEXT           "1.0", IDC_LINEWIDTH_VALUE, 198, 66, 40, 8
+    LTEXT           "Smoothing:", IDC_STATIC, 10, 92, 58, 8
+    CONTROL         "", IDC_SMOOTH_SLIDER, "msctls_trackbar32", TBS_HORZ | TBS_AUTOTICKS | WS_TABSTOP, 72, 88, 120, 18
+    LTEXT           "1.0", IDC_SMOOTH_VALUE, 198, 92, 40, 8
+    LTEXT           "Corner size:", IDC_STATIC, 10, 118, 58, 8
+    CONTROL         "", IDC_CORNER_SLIDER, "msctls_trackbar32", TBS_HORZ | TBS_AUTOTICKS | WS_TABSTOP, 72, 114, 120, 18
+    LTEXT           "0.85", IDC_CORNER_VALUE, 198, 118, 40, 8
+    LTEXT           "Dot size:", IDC_STATIC, 10, 144, 58, 8
+    CONTROL         "", IDC_DOT_SLIDER, "msctls_trackbar32", TBS_HORZ | TBS_AUTOTICKS | WS_TABSTOP, 72, 140, 120, 18
+    LTEXT           "2.0", IDC_DOT_VALUE, 198, 144, 40, 8
+    LTEXT           "Trail length:", IDC_STATIC, 10, 170, 58, 8
+    COMBOBOX        IDC_TRAIL_COMBO, 76, 168, 112, 60, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
     LTEXT           "Changes auto-save for the current game. The buttons below manage the global defaults (games with no saved settings).",
-                    IDC_STATIC, 10, 114, 230, 18
-    PUSHBUTTON      "Save as Default", IDC_SAVE_DEFAULT, 10, 150, 76, 14
-    PUSHBUTTON      "Reset to Default", IDC_RESET_DEFAULT, 90, 150, 76, 14
-    DEFPUSHBUTTON   "Close", IDOK, 190, 150, 48, 14
+                    IDC_STATIC, 10, 194, 230, 18
+    PUSHBUTTON      "Save as Default", IDC_SAVE_DEFAULT, 10, 228, 76, 14
+    PUSHBUTTON      "Reset to Default", IDC_RESET_DEFAULT, 90, 228, 76, 14
+    DEFPUSHBUTTON   "Close", IDOK, 190, 228, 48, 14
 END
 
 // ----- Audio -----

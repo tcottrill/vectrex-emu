@@ -41,15 +41,30 @@ void emulator_set_ambient_enabled(int on);
 int  emulator_get_ambient_volume(void);   /* 0..100 */
 void emulator_set_ambient_volume(int pct);
 
-/* Glow amount slider (0..15) and the three line/point size sliders (1.0..10.0). */
+/* Glow amount slider (0..15) and the line width / dot size sliders (1.0..10.0). */
 int   emulator_get_glow(void);
 void  emulator_set_glow(int amt);
-float emulator_get_line_width(void);   /* line stroke thickness */
+float emulator_get_line_width(void);   /* beam thickness */
 void  emulator_set_line_width(float w);
-float emulator_get_point_size(void);   /* rounded size at line endpoints */
-void  emulator_set_point_size(float w);
 float emulator_get_dot_size(void);     /* size of standalone (zero-length) dots */
 void  emulator_set_dot_size(float w);
+
+/* Beam renderer: edge feather (0.4..2.0) and corner disc size (0.3..2.5). */
+float emulator_get_smoothing(void);
+void  emulator_set_smoothing(float v);
+float emulator_get_corner(void);
+void  emulator_set_corner(float v);
+
+/* Glow blur path: 0 = classic accumulate blur, 1 = dual-filter pyramid,
+   plus the pyramid's gain / spread / tail / core tuning. */
+int   emulator_get_glow_filter(void);
+void  emulator_set_glow_filter(int f);
+void  emulator_get_glow2(float* gain, float* spread, float* tail, float* core);
+void  emulator_set_glow2(float gain, float spread, float tail, float core);
+
+/* Phosphor trail persistence, 1..3 (on/off is video effect 1). */
+int   emulator_get_trail_level(void);
+void  emulator_set_trail_level(int level);
 
 #endif
 

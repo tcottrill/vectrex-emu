@@ -63,8 +63,7 @@
     <ClInclude Include="sys_audio\xaudio2_backend.h" />
     <ClInclude Include="sys_fileio\aae_fileio.h" />
     <ClInclude Include="sys_graphics\colordefs.h" />
-    <ClInclude Include="sys_graphics\debug_draw.h" />
-    <ClInclude Include="sys_graphics\gl_prim_debug.h" />
+    <ClInclude Include="sys_graphics\render_types.h" />
     <ClInclude Include="sys_graphics\shader_util.h" />
     <ClInclude Include="sys_graphics\sys_gl.h" />
     <ClInclude Include="sys_graphics\sys_texture.h" />
@@ -77,6 +76,8 @@
     <ClInclude Include="aae_video\gl_shader.h" />
     <ClInclude Include="aae_video\gl_texturing.h" />
     <ClInclude Include="aae_video\emu_vector_draw.h" />
+    <ClInclude Include="aae_video\vector_draw.h" />
+    <ClInclude Include="aae_video\vector_draw_gl.h" />
     <ClInclude Include="aae_video\shader_definitions.h" />
     <ClInclude Include="aae_video\aae_mame_driver.h" />
     <ClInclude Include="aae_video\config.h" />
@@ -107,7 +108,6 @@
     <ClCompile Include="sys_audio\stb_vorbis.c" />
     <ClCompile Include="sys_audio\xaudio2_backend.cpp" />
     <ClCompile Include="sys_fileio\aae_fileio.cpp" />
-    <ClCompile Include="sys_graphics\gl_prim_debug.cpp" />
     <ClCompile Include="sys_graphics\sys_gl.cpp" />
     <ClCompile Include="sys_graphics\sys_texture.cpp" />
     <ClCompile Include="sys_graphics\texrect.cpp" />
@@ -119,6 +119,7 @@
     <ClCompile Include="aae_video\gl_shader.cpp" />
     <ClCompile Include="aae_video\gl_texturing.cpp" />
     <ClCompile Include="aae_video\emu_vector_draw.cpp" />
+    <ClCompile Include="aae_video\vector_draw.cpp" />
     <ClCompile Include="aae_video\aae_compat.cpp" />
   </ItemGroup>
   <ItemGroup>

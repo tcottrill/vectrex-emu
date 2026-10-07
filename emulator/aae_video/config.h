@@ -11,9 +11,9 @@
 // definition or runtime initialization step.
 //
 // Fields actually consumed by the kept renderer code:
-//   artcrop, artwork, bezel, debug_profile_code, fire_point_size, forcesync,
-//   gain, linewidth, overlay, pointsize, prescale, raster_effect,
-//   system_rotation, vecglow, vectrail, widescreen.
+//   artcrop, artwork, bezel, corner_strength, debug_profile_code,
+//   fire_point_size, forcesync, gain, glow_filter, glow2_*, line_smoothing,
+//   linewidth, overlay, system_rotation, vecglow, vectrail.
 // -----------------------------------------------------------------------------
 
 // Named struct (not an unnamed typedef) so we can use default member
@@ -32,7 +32,19 @@ struct settings {
 	int   vecglow           = 60;
 	int   vectrail          = 0;   // phosphor trail OFF by default (host enables per-game)
 	float prescale          = 1.0f;
-	int   forcesync         = 1;
+	// [vectrex-port] 0, as in AAE. The host's FrameLimiter is the sole pacer;
+	// 1 made init_gl re-enable vsync after the host had turned it off.
+	int   forcesync         = 0;
+
+	// --- Modern beam renderer + glow (AAE defaults; host loads from [video]) ---
+	float line_smoothing    = 1.0f;    // beam edge feather, logical units
+	float corner_strength   = 0.85f;   // join disc radius / beam half-width
+	int   shots_textured    = 0;       // Vectrex has no textured shots
+	int   glow_filter       = 0;       // 0 = classic accumulate blur, 1 = dual-filter pyramid
+	float glow2_gain        = 10.0f;   // pyramid: final output gain
+	float glow2_spread      = 1.0f;    // pyramid: tap radius scale
+	float glow2_tail        = 0.6f;    // pyramid: down-level re-injection weight
+	float glow2_core        = 1.0f;    // pyramid: unblurred-source weight
 	int   debug_profile_code= 0;
 	char* raster_effect     = (char*)"";
 	int   system_rotation   = 0;

@@ -14,50 +14,20 @@
 #ifndef EMU_VECTOR_DRAW_H
 #define EMU_VECTOR_DRAW_H
 
+// ===========================================================================
+// emu_vector_draw.h - the emulation-side vector seam.
+//
+// [vectrex-port] Trimmed from AAE: the Vectrex has no textured shots, so
+// add_tex / set_texture_id / set_game_has_shots / set_shot_texture_ready are
+// gone, and add_dot is added for zero-length vectors.
+// ===========================================================================
 
-#include "aae_mame_driver.h"
-#include "colordefs.h"
+#include "colordefs.h"      // rgb_t
 
-#include "sys_gl.h"
-
-typedef struct colorsarray { int r, g, b; } colors;
-extern colors vec_colors[256];
-
-class fpoint
-{
-public:
-    float x;
-    float y;
-    rgb_t color;
-    rgb_t colorshalf;
-
-    fpoint(float x, float y, rgb_t color, rgb_t colorshalf) : x(x), y(y), color(color), colorshalf(colorshalf) {}
-    fpoint() : x(0), y(0), color(0), colorshalf(0) {}
-};
-
-class txdata
-{
-public:
-    float x, y;
-    float tx, ty;
-    rgb_t color;
-
-    txdata() : x(0), y(0), tx(0), ty(0), color(0) {}
-    txdata(float x, float y, float tx, float ty, rgb_t color) : x(x), y(y), tx(tx), ty(ty), color(color) {}
-};
-
-void add_tex(float ex, float ey, int intensity, rgb_t col);
 void add_line(float sx, float sy, float ex, float ey, int intensity, rgb_t col);
-// [vectrex-port] Single dots (zero-length vectors) go in their own buffer so they
-// can be sized independently of the rounded points draw_all() puts at line ends.
-void add_dot(float x, float y, int intensity, rgb_t col);
-void draw_dots(float point_size);
-void draw_all();
-void set_texture_id(GLuint* id);
-void set_blendmode(GLenum sfactor, GLenum dfactor);
+// [vectrex-port] A single dot (zero-length vector), drawn as a round beam disc
+// whose diameter is dot_size logical units, independent of the line width.
+void add_dot(float x, float y, int intensity, rgb_t col, float dot_size);
 void cache_clear();
-rgb_t cache_tex_color(int intensity, rgb_t col);
-void cache_texpoint(float ex, float ey, float tx, float ty, int intensity, rgb_t col);
-rgb_t modulate_color(rgb_t col, int intensity, int gain);
 
 #endif

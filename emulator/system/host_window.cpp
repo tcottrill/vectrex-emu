@@ -88,7 +88,9 @@ static std::string  g_currentGame = "minestorm"; // base name of the running ROM
 static bool         g_applyingGameVideo = false;  // guard: don't save while restoring
 // Global default video settings (read once at startup; the baseline before per-game).
 static int   g_defGlow      = 8;
-static float g_defLineWidth = 1.5f, g_defPointSize = 1.5f, g_defDotSize = 2.0f;
+static float g_defLineWidth = 1.5f, g_defDotSize = 2.0f;
+static float g_defSmoothing = 1.0f, g_defCorner = 0.85f;
+static int   g_defGlowFilter = 0, g_defTrailLevel = 1;
 static bool  g_defGlowOn = true, g_defTrailOn = false, g_defOverlayOn = true;
 
 static std::string HostRomBaseName(const char* utf8_path);
@@ -357,26 +359,67 @@ static void HostShowPopupMenu(HWND wnd)
 }
 
 // ---- Video Settings dialog (modeless: the game keeps running so slider drags
-//      preview live). Glow slider is 0..15; the line-width / endpoint / dot
-//      sliders use a 10..100 trackbar mapped to 1.0..10.0. ----
+//      preview live). Glow slider is 0..15; the float sliders use a trackbar of
+//      tenths (or hundredths for corner size) mapped onto the value range. ----
 static void HostSetIntLabel(HWND dlg, int id, int v)
 {
     wchar_t b[16]; wsprintfW(b, L"%d", v);
     SetDlgItemTextW(dlg, id, b);
 }
-static void HostSetFloatLabel(HWND dlg, int id, float w)
+// Float sliders: the trackbar position is value * scale, over [lo, hi].
+struct HostFloatSlider { int sliderId, labelId; float lo, hi, scale; const wchar_t* fmt; };
+static const HostFloatSlider kLineSlider   = { IDC_LINEWIDTH_SLIDER, IDC_LINEWIDTH_VALUE, 1.0f, 10.0f, 10.0f,  L"%.1f" };
+static const HostFloatSlider kSmoothSlider = { IDC_SMOOTH_SLIDER,    IDC_SMOOTH_VALUE,    0.4f,  2.0f, 10.0f,  L"%.1f" };
+static const HostFloatSlider kCornerSlider = { IDC_CORNER_SLIDER,    IDC_CORNER_VALUE,    0.3f,  2.5f, 100.0f, L"%.2f" };
+static const HostFloatSlider kDotSlider    = { IDC_DOT_SLIDER,       IDC_DOT_VALUE,       1.0f, 10.0f, 10.0f,  L"%.1f" };
+
+static void HostSetFloatLabel(HWND dlg, const HostFloatSlider& fs, float w)
 {
-    wchar_t b[16]; swprintf_s(b, 16, L"%.1f", w);
-    SetDlgItemTextW(dlg, id, b);
+    wchar_t b[16]; swprintf_s(b, 16, fs.fmt, w);
+    SetDlgItemTextW(dlg, fs.labelId, b);
 }
-// Initialize a 1.0..10.0 float slider (trackbar range 10..100) from a value.
-static void HostInitFloatSlider(HWND dlg, int sliderId, int labelId, float val)
+static void HostInitFloatSlider(HWND dlg, const HostFloatSlider& fs, float val)
 {
-    HWND s = GetDlgItem(dlg, sliderId);
-    SendMessageW(s, TBM_SETRANGE, TRUE, MAKELONG(10, 100));  // 1.0..10.0 x10
-    SendMessageW(s, TBM_SETPAGESIZE, 0, 5);
-    SendMessageW(s, TBM_SETPOS, TRUE, (int)(val * 10.0f + 0.5f));
-    HostSetFloatLabel(dlg, labelId, val);
+    HWND s = GetDlgItem(dlg, fs.sliderId);
+    SendMessageW(s, TBM_SETRANGE, TRUE, MAKELONG((int)(fs.lo * fs.scale + 0.5f), (int)(fs.hi * fs.scale + 0.5f)));
+    SendMessageW(s, TBM_SETPAGESIZE, 0, (LPARAM)(fs.scale >= 100.0f ? 5 : 1));
+    if (fs.scale >= 100.0f) SendMessageW(s, TBM_SETTICFREQ, 10, 0);   // a tick per 0.1
+    SendMessageW(s, TBM_SETPOS, TRUE, (int)(val * fs.scale + 0.5f));
+    HostSetFloatLabel(dlg, fs, val);
+}
+// Read a float slider's value and update its label.
+static float HostReadFloatSlider(HWND dlg, const HostFloatSlider& fs)
+{
+    float v = (int)SendMessageW(GetDlgItem(dlg, fs.sliderId), TBM_GETPOS, 0, 0) / fs.scale;
+    HostSetFloatLabel(dlg, fs, v);
+    return v;
+}
+// Fill a drop-down list and select 'sel'.
+static void HostInitCombo(HWND dlg, int id, const wchar_t* const* items, int count, int sel)
+{
+    HWND c = GetDlgItem(dlg, id);
+    SendMessageW(c, CB_RESETCONTENT, 0, 0);
+    for (int i = 0; i < count; ++i)
+        SendMessageW(c, CB_ADDSTRING, 0, (LPARAM)items[i]);
+    SendMessageW(c, CB_SETCURSEL, (WPARAM)sel, 0);
+}
+static const wchar_t* const kGlowFilterItems[] = { L"Classic blur", L"Pyramid (dual filter)" };
+static const wchar_t* const kTrailItems[]      = { L"Little", L"More", L"Max" };
+
+// Set every Video page control from the emulator's current values.
+static void HostFillVideoPage(HWND p)
+{
+    int g = g_app.get_glow ? g_app.get_glow() : 0;
+    SendMessageW(GetDlgItem(p, IDC_GLOW_SLIDER), TBM_SETPOS, TRUE, g);
+    HostSetIntLabel(p, IDC_GLOW_VALUE, g);
+    HostInitCombo(p, IDC_GLOWFILTER_COMBO, kGlowFilterItems, 2,
+                  g_app.get_glow_filter ? g_app.get_glow_filter() : 0);
+    HostInitFloatSlider(p, kLineSlider,   g_app.get_line_width ? g_app.get_line_width() : 1.5f);
+    HostInitFloatSlider(p, kSmoothSlider, g_app.get_smoothing  ? g_app.get_smoothing()  : 1.0f);
+    HostInitFloatSlider(p, kCornerSlider, g_app.get_corner     ? g_app.get_corner()     : 0.85f);
+    HostInitFloatSlider(p, kDotSlider,    g_app.get_dot_size   ? g_app.get_dot_size()   : 2.0f);
+    HostInitCombo(p, IDC_TRAIL_COMBO, kTrailItems, 3,
+                  (g_app.get_trail_level ? g_app.get_trail_level() : 1) - 1);
 }
 
 // ---- Per-game video settings: data/ini/<game>.ini -------------------------
@@ -432,13 +475,7 @@ static void HostRefreshVideoMenu()
 static void HostRefreshVideoDialog()
 {
     if (!g_settingsDlg || g_settingsPage != 0) return;
-    HWND p = g_settingsDlg;
-    int g = g_app.get_glow ? g_app.get_glow() : 0;
-    SendMessageW(GetDlgItem(p, IDC_GLOW_SLIDER), TBM_SETPOS, TRUE, g);
-    HostSetIntLabel(p, IDC_GLOW_VALUE, g);
-    HostInitFloatSlider(p, IDC_LINEWIDTH_SLIDER, IDC_LINEWIDTH_VALUE, g_app.get_line_width ? g_app.get_line_width() : 1.0f);
-    HostInitFloatSlider(p, IDC_POINT_SLIDER, IDC_POINT_VALUE, g_app.get_point_size ? g_app.get_point_size() : 1.0f);
-    HostInitFloatSlider(p, IDC_DOT_SLIDER, IDC_DOT_VALUE, g_app.get_dot_size ? g_app.get_dot_size() : 1.0f);
+    HostFillVideoPage(g_settingsDlg);
 }
 
 // Save the current video settings to data/ini/<current game>.ini.
@@ -448,8 +485,11 @@ static void HostSaveVideoForGame()
     std::wstring path = HostGameIniPath(g_currentGame);
     if (g_app.get_glow)       GameIniSetInt(path, L"glow", g_app.get_glow());
     if (g_app.get_line_width) GameIniSetFloat(path, L"linewidth", g_app.get_line_width());
-    if (g_app.get_point_size) GameIniSetFloat(path, L"pointsize", g_app.get_point_size());
     if (g_app.get_dot_size)   GameIniSetFloat(path, L"dotsize", g_app.get_dot_size());
+    if (g_app.get_smoothing)  GameIniSetFloat(path, L"smoothing", g_app.get_smoothing());
+    if (g_app.get_corner)     GameIniSetFloat(path, L"corner", g_app.get_corner());
+    if (g_app.get_glow_filter) GameIniSetInt(path, L"glow_filter", g_app.get_glow_filter());
+    if (g_app.get_trail_level) GameIniSetInt(path, L"trail_level", g_app.get_trail_level());
     if (g_app.get_video) {
         GameIniSetBool(path, L"glow_on",    g_app.get_video(HOST_VID_GLOW)    != 0);
         GameIniSetBool(path, L"trail_on",   g_app.get_video(HOST_VID_TRAIL)   != 0);
@@ -463,7 +503,9 @@ static void HostApplyVideoForGame(const std::string& game)
     g_applyingGameVideo = true;
 
     int   glow   = g_defGlow;
-    float lineW  = g_defLineWidth, pointS = g_defPointSize, dotS = g_defDotSize;
+    float lineW  = g_defLineWidth, dotS = g_defDotSize;
+    float smooth = g_defSmoothing, corner = g_defCorner;
+    int   glowFilter = g_defGlowFilter, trailLevel = g_defTrailLevel;
     bool  glowOn = g_defGlowOn, trailOn = g_defTrailOn;
     // Overlay defaults ON so a game's art shows automatically when present
     // (set_video guards on art availability, so this is a no-op without art).
@@ -477,8 +519,11 @@ static void HostApplyVideoForGame(const std::string& game)
             found = true;
             glow      = GameIniGetInt(path,   L"glow",       glow);
             lineW     = GameIniGetFloat(path, L"linewidth",  lineW);
-            pointS    = GameIniGetFloat(path, L"pointsize",  pointS);
             dotS      = GameIniGetFloat(path, L"dotsize",    dotS);
+            smooth    = GameIniGetFloat(path, L"smoothing",  smooth);
+            corner    = GameIniGetFloat(path, L"corner",     corner);
+            glowFilter = GameIniGetInt(path,  L"glow_filter", glowFilter);
+            trailLevel = GameIniGetInt(path,  L"trail_level", trailLevel);
             glowOn    = GameIniGetBool(path,  L"glow_on",    glowOn);
             trailOn   = GameIniGetBool(path,  L"trail_on",   trailOn);
             overlayOn = GameIniGetBool(path,  L"overlay_on", overlayOn);
@@ -487,8 +532,11 @@ static void HostApplyVideoForGame(const std::string& game)
 
     if (g_app.set_glow)       g_app.set_glow(glow);
     if (g_app.set_line_width) g_app.set_line_width(lineW);
-    if (g_app.set_point_size) g_app.set_point_size(pointS);
     if (g_app.set_dot_size)   g_app.set_dot_size(dotS);
+    if (g_app.set_smoothing)  g_app.set_smoothing(smooth);
+    if (g_app.set_corner)     g_app.set_corner(corner);
+    if (g_app.set_glow_filter) g_app.set_glow_filter(glowFilter);
+    if (g_app.set_trail_level) g_app.set_trail_level(trailLevel);
     if (g_app.set_video) {
         g_app.set_video(HOST_VID_GLOW,    glowOn    ? 1 : 0);
         g_app.set_video(HOST_VID_TRAIL,   trailOn   ? 1 : 0);
@@ -499,9 +547,9 @@ static void HostApplyVideoForGame(const std::string& game)
     HostSetOverlayItemState(g_menu);
     HostRefreshVideoDialog();
 
-    LOG_INFO("video: game '%s' -> glow=%d(%s) line=%.2f point=%.2f dot=%.2f trail=%s overlay=%s (%s)",
-             game.c_str(), glow, glowOn ? "on" : "off", lineW, pointS, dotS,
-             trailOn ? "on" : "off", overlayOn ? "on" : "off",
+    LOG_INFO("video: game '%s' -> glow=%d(%s, filter %d) line=%.2f smooth=%.2f corner=%.2f dot=%.2f trail=%s(level %d) overlay=%s (%s)",
+             game.c_str(), glow, glowOn ? "on" : "off", glowFilter, lineW, smooth, corner, dotS,
+             trailOn ? "on" : "off", trailLevel, overlayOn ? "on" : "off",
              found ? "per-game ini" : "defaults");
 
     g_applyingGameVideo = false;
@@ -513,8 +561,11 @@ static void HostSaveCurrentAsDefault()
 {
     if (g_app.get_glow)       g_defGlow      = g_app.get_glow();
     if (g_app.get_line_width) g_defLineWidth = g_app.get_line_width();
-    if (g_app.get_point_size) g_defPointSize = g_app.get_point_size();
     if (g_app.get_dot_size)   g_defDotSize   = g_app.get_dot_size();
+    if (g_app.get_smoothing)  g_defSmoothing = g_app.get_smoothing();
+    if (g_app.get_corner)     g_defCorner    = g_app.get_corner();
+    if (g_app.get_glow_filter) g_defGlowFilter = g_app.get_glow_filter();
+    if (g_app.get_trail_level) g_defTrailLevel = g_app.get_trail_level();
     if (g_app.get_video) {
         g_defGlowOn    = g_app.get_video(HOST_VID_GLOW)    != 0;
         g_defTrailOn   = g_app.get_video(HOST_VID_TRAIL)   != 0;
@@ -522,8 +573,11 @@ static void HostSaveCurrentAsDefault()
     }
     set_config_int  ("video", "glow",       g_defGlow);
     set_config_float("video", "linewidth",  g_defLineWidth);
-    set_config_float("video", "pointsize",  g_defPointSize);
     set_config_float("video", "dotsize",    g_defDotSize);
+    set_config_float("video", "smoothing",  g_defSmoothing);
+    set_config_float("video", "corner",     g_defCorner);
+    set_config_int  ("video", "glow_filter", g_defGlowFilter);
+    set_config_int  ("video", "trail_level", g_defTrailLevel);
     set_config_bool ("video", "glow_on",    g_defGlowOn);
     set_config_bool ("video", "trail_on",   g_defTrailOn);
     set_config_bool ("video", "overlay_on", g_defOverlayOn);
@@ -555,15 +609,7 @@ static INT_PTR CALLBACK HostVideoPageProc(HWND dlg, UINT msg, WPARAM wParam, LPA
         HWND gs = GetDlgItem(dlg, IDC_GLOW_SLIDER);
         SendMessageW(gs, TBM_SETRANGE, TRUE, MAKELONG(0, 15));
         SendMessageW(gs, TBM_SETPAGESIZE, 0, 1);
-        int g = g_app.get_glow ? g_app.get_glow() : 0;
-        SendMessageW(gs, TBM_SETPOS, TRUE, g);
-        HostSetIntLabel(dlg, IDC_GLOW_VALUE, g);
-        HostInitFloatSlider(dlg, IDC_LINEWIDTH_SLIDER, IDC_LINEWIDTH_VALUE,
-                            g_app.get_line_width ? g_app.get_line_width() : 1.0f);
-        HostInitFloatSlider(dlg, IDC_POINT_SLIDER, IDC_POINT_VALUE,
-                            g_app.get_point_size ? g_app.get_point_size() : 1.0f);
-        HostInitFloatSlider(dlg, IDC_DOT_SLIDER, IDC_DOT_VALUE,
-                            g_app.get_dot_size ? g_app.get_dot_size() : 1.0f);
+        HostFillVideoPage(dlg);
         return TRUE;
     }
     case WM_HSCROLL: {
@@ -572,23 +618,31 @@ static INT_PTR CALLBACK HostVideoPageProc(HWND dlg, UINT msg, WPARAM wParam, LPA
             int g = (int)SendMessageW(ctrl, TBM_GETPOS, 0, 0);
             if (g_app.set_glow) g_app.set_glow(g);
             HostSetIntLabel(dlg, IDC_GLOW_VALUE, g);
-        } else if (ctrl == GetDlgItem(dlg, IDC_LINEWIDTH_SLIDER)) {
-            float w = (int)SendMessageW(ctrl, TBM_GETPOS, 0, 0) / 10.0f;
+        } else if (ctrl == GetDlgItem(dlg, kLineSlider.sliderId)) {
+            float w = HostReadFloatSlider(dlg, kLineSlider);
             if (g_app.set_line_width) g_app.set_line_width(w);
-            HostSetFloatLabel(dlg, IDC_LINEWIDTH_VALUE, w);
-        } else if (ctrl == GetDlgItem(dlg, IDC_POINT_SLIDER)) {
-            float w = (int)SendMessageW(ctrl, TBM_GETPOS, 0, 0) / 10.0f;
-            if (g_app.set_point_size) g_app.set_point_size(w);
-            HostSetFloatLabel(dlg, IDC_POINT_VALUE, w);
-        } else if (ctrl == GetDlgItem(dlg, IDC_DOT_SLIDER)) {
-            float w = (int)SendMessageW(ctrl, TBM_GETPOS, 0, 0) / 10.0f;
+        } else if (ctrl == GetDlgItem(dlg, kSmoothSlider.sliderId)) {
+            float v = HostReadFloatSlider(dlg, kSmoothSlider);
+            if (g_app.set_smoothing) g_app.set_smoothing(v);
+        } else if (ctrl == GetDlgItem(dlg, kCornerSlider.sliderId)) {
+            float v = HostReadFloatSlider(dlg, kCornerSlider);
+            if (g_app.set_corner) g_app.set_corner(v);
+        } else if (ctrl == GetDlgItem(dlg, kDotSlider.sliderId)) {
+            float w = HostReadFloatSlider(dlg, kDotSlider);
             if (g_app.set_dot_size) g_app.set_dot_size(w);
-            HostSetFloatLabel(dlg, IDC_DOT_VALUE, w);
         }
         HostSaveVideoForGame();   // persist this change to the current game's ini
         return TRUE;
     }
     case WM_COMMAND:
+        if (HIWORD(wParam) == CBN_SELCHANGE) {
+            int sel = (int)SendMessageW((HWND)lParam, CB_GETCURSEL, 0, 0);
+            if (sel < 0) return TRUE;
+            if (LOWORD(wParam) == IDC_GLOWFILTER_COMBO && g_app.set_glow_filter) g_app.set_glow_filter(sel);
+            if (LOWORD(wParam) == IDC_TRAIL_COMBO && g_app.set_trail_level)      g_app.set_trail_level(sel + 1);
+            HostSaveVideoForGame();
+            return TRUE;
+        }
         if (LOWORD(wParam) == IDC_SAVE_DEFAULT)  { HostSaveCurrentAsDefault(); return TRUE; }
         if (LOWORD(wParam) == IDC_RESET_DEFAULT) { HostResetGameToDefault();   return TRUE; }
         if (LOWORD(wParam) == IDOK || LOWORD(wParam) == IDCANCEL) { DestroyWindow(dlg); return TRUE; }
@@ -862,7 +916,9 @@ int host_run(HINSTANCE hInstance, int nCmdShow, const HostApp* app)
     SetForegroundWindow(hWnd);
     SetFocus(hWnd);
 
-    InitOpenGLContext(false);
+    // GL 4.2 forward-compatible core profile, as AAE uses: the renderer is
+    // shader/VAO only, so nothing needs the compatibility profile.
+    InitOpenGLContext(false, false, true);
     glewInit();
     // vsync OFF: FrameLimiter is the sole pacer. vsync + FrameLimiter both target
     // the refresh and fight each other, so they are mutually exclusive here.
@@ -899,8 +955,17 @@ int host_run(HINSTANCE hInstance, int nCmdShow, const HostApp* app)
     // These come from emulator.ini [video] (hand-editable); trail defaults OFF.
     g_defGlow      = get_config_int("video", "glow", 8);
     g_defLineWidth = get_config_float("video", "linewidth", 1.5f);
-    g_defPointSize = get_config_float("video", "pointsize", 1.5f);
     g_defDotSize   = get_config_float("video", "dotsize", 2.0f);
+    g_defSmoothing = get_config_float("video", "smoothing", 1.0f);
+    g_defCorner    = get_config_float("video", "corner", 0.85f);
+    g_defGlowFilter = get_config_int("video", "glow_filter", 0);
+    g_defTrailLevel = get_config_int("video", "trail_level", 1);
+    // Pyramid-glow tuning is global and ini-only (AAE defaults).
+    if (g_app.set_glow2)
+        g_app.set_glow2(get_config_float("video", "glow2_gain", 10.0f),
+                        get_config_float("video", "glow2_spread", 1.0f),
+                        get_config_float("video", "glow2_tail", 0.6f),
+                        get_config_float("video", "glow2_core", 1.0f));
     g_defGlowOn    = get_config_bool("video", "glow_on", true);
     g_defTrailOn   = get_config_bool("video", "trail_on", false);   // vector trail OFF by default
     g_defOverlayOn = get_config_bool("video", "overlay_on", true);

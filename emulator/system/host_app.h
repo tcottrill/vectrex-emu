@@ -49,10 +49,19 @@ struct HostApp {
     void  (*set_glow)(int amt);
     float (*get_line_width)(void);            // line stroke width, 1.0..10.0
     void  (*set_line_width)(float w);
-    float (*get_point_size)(void);            // line endpoint size, 1.0..10.0
-    void  (*set_point_size)(float w);
     float (*get_dot_size)(void);              // single-dot size, 1.0..10.0
     void  (*set_dot_size)(float w);
+    float (*get_smoothing)(void);             // beam edge feather, 0.4..2.0
+    void  (*set_smoothing)(float v);
+    float (*get_corner)(void);                // beam corner disc size, 0.3..2.5
+    void  (*set_corner)(float v);
+    int   (*get_glow_filter)(void);           // 0 = classic blur, 1 = pyramid
+    void  (*set_glow_filter)(int f);
+    int   (*get_trail_level)(void);           // phosphor persistence, 1..3
+    void  (*set_trail_level)(int level);
+    // Pyramid-glow tuning (ini only): gain, spread, tail, core.
+    void  (*get_glow2)(float* gain, float* spread, float* tail, float* core);
+    void  (*set_glow2)(float gain, float spread, float tail, float core);
 
     // Called once (before init) with the host's chosen present rate -- the
     // monitor refresh, unless target_fps is non-zero. The emulator scales its

@@ -13,8 +13,7 @@
 //   - emulator_is_gui_active() stub (always false).
 //   - osd_get_pen() stub (cut raster path only).
 //
-// Nothing here drives the pipeline; wiring into the Vectrex emulation is a
-// later step performed by someone else.
+// Nothing here drives the pipeline; emulator.cpp (osint_render) does.
 // -----------------------------------------------------------------------------
 
 #include "framework.h"          // SCREEN_W / SCREEN_H
@@ -56,32 +55,27 @@ RunningMachine* Machine = &s_vectrex_machine;
 // step loads the overlay texture into art_tex[1] and sets art_loaded[1] = 1.
 // Everything else stays zero (no backdrop, no bezel).
 // -----------------------------------------------------------------------------
-GLuint art_tex[8]    = { 0 };
+rtex_t art_tex[8]    = { 0 };
 int    art_loaded[6] = { 0 };
 
 // -----------------------------------------------------------------------------
 // set_texture
-// Verbatim behavior from AAE texture_handler.cpp: bind the texture and set its
-// filtering, wrapping, optional color reset, and optional alpha blending.
+// Verbatim behavior from the current (core-profile) AAE texture_handler.cpp:
+// bind the texture and set its filtering, wrapping and optional alpha blending.
+// set_color is unused there too - core profile has no current vertex color.
 // -----------------------------------------------------------------------------
-void set_texture(GLuint* texture, GLboolean linear, GLboolean mipmapping, GLboolean blending, GLboolean set_color)
+void set_texture(rtex_t* texture, bool linear, bool mipmapping, bool blending, bool /*set_color*/)
 {
 	GLenum magFilter = linear ? GL_LINEAR : GL_NEAREST;
 	GLenum minFilter = mipmapping ? GL_LINEAR_MIPMAP_LINEAR : magFilter;
 
 	glBindTexture(GL_TEXTURE_2D, *texture);
-	glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
 
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, magFilter);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, minFilter);
 
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-
-	glEnable(GL_TEXTURE_2D);
-
-	if (set_color)
-		glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
 
 	if (blending)
 	{

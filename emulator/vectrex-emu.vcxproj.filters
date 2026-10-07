@@ -108,10 +108,7 @@
     <ClInclude Include="sys_graphics\colordefs.h">
       <Filter>Source Files\sys_graphics</Filter>
     </ClInclude>
-    <ClInclude Include="sys_graphics\debug_draw.h">
-      <Filter>Source Files\sys_graphics</Filter>
-    </ClInclude>
-    <ClInclude Include="sys_graphics\gl_prim_debug.h">
+    <ClInclude Include="sys_graphics\render_types.h">
       <Filter>Source Files\sys_graphics</Filter>
     </ClInclude>
     <ClInclude Include="sys_graphics\shader_util.h">
@@ -193,6 +190,12 @@
       <Filter>Source Files\aae_video</Filter>
     </ClInclude>
     <ClInclude Include="aae_video\emu_vector_draw.h">
+      <Filter>Source Files\aae_video</Filter>
+    </ClInclude>
+    <ClInclude Include="aae_video\vector_draw.h">
+      <Filter>Source Files\aae_video</Filter>
+    </ClInclude>
+    <ClInclude Include="aae_video\vector_draw_gl.h">
       <Filter>Source Files\aae_video</Filter>
     </ClInclude>
     <ClInclude Include="aae_video\gl_fbo.h">
@@ -278,9 +281,6 @@
     <ClCompile Include="system\wintimer.cpp">
       <Filter>Source Files\system</Filter>
     </ClCompile>
-    <ClCompile Include="sys_graphics\gl_prim_debug.cpp">
-      <Filter>Source Files\sys_graphics</Filter>
-    </ClCompile>
     <ClCompile Include="sys_graphics\sys_gl.cpp">
       <Filter>Source Files\sys_graphics</Filter>
     </ClCompile>
@@ -327,6 +327,9 @@
       <Filter>Source Files\aae_video</Filter>
     </ClCompile>
     <ClCompile Include="aae_video\emu_vector_draw.cpp">
+      <Filter>Source Files\aae_video</Filter>
+    </ClCompile>
+    <ClCompile Include="aae_video\vector_draw.cpp">
       <Filter>Source Files\aae_video</Filter>
     </ClCompile>
     <ClCompile Include="aae_video\gl_fbo.cpp">

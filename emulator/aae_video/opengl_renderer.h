@@ -1,36 +1,38 @@
+//==========================================================================
+// AAE - Another Arcade Emulator
+// Copyright (C) 2026 Tim Cottrill - GNU GPL v3 or later.
+//==========================================================================
+// [vectrex-port] Trimmed from AAE aae_video/opengl_renderer.h: GL chain only
+// (no Vulkan dispatch, no raster path, no GUI points, no UI overlays).
 #ifndef GLCODE_H
 #define GLCODE_H
 
-#include "framework.h"
 #include "texrect.h"
-#include "sys_gl.h"
+#include "render_types.h"
 
 // Sane Global Rectangle Coordinates
 extern int game_rect_left;
 extern int game_rect_right;
 extern int game_rect_bottom;
 extern int game_rect_top;
-// Custom flag(s) for Warlords, what a pain in the butt. I need to find a better way
-extern int g_scanline_override;
 
-void set_ortho(GLint width, GLint height);
-// Y-down ortho for the raster rendering path (origin top-left, Y increases downward).
-void set_ortho_raster(GLint width, GLint height);
+// Current projection, mirrored from set_ortho so the core-profile quad shaders
+// can read it as a uniform (replaces the fixed-function GL_PROJECTION matrix).
+// Forward-declared to avoid pulling MathUtils into every includer.
+namespace aae { namespace math { struct mat4; } }
+extern aae::math::mat4 g_proj;
+
+void set_ortho(int width, int height);
 void set_render();
+// Draw the queued beam geometry into fbo1 (unless paused), then composite and
+// present via final_render().
 void render();
 void final_render(int left, int right, int bottom, int top);
-// [vectrex-port] removed decl: final_render_raster() (raster path cut)
 void set_render_fbo4();
 void end_render_fbo4();
-// [vectrex-port] render_ui_overlays is now a no-op (UI/font overlays cut) but
-// kept on the API since final_render() still calls it.
-void render_ui_overlays(int winW, int winH);
 void glcode_vector_hard_clear_fbo1();
 int init_gl(void);
 void end_gl();
 void emulator_on_window_resize(int newW, int newH);
-void Widescreen_calc();
-// [vectrex-port] removed decls: init_raster_overlay(), shutdown_raster_overlay(),
-//                 glcode_get_scanrez_tex() (scanline overlay / raster path cut)
 
 #endif

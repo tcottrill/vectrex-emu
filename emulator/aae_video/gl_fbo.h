@@ -32,6 +32,10 @@
 //           Call fbo_init_raster() after a game is set up.
 //           Call fbo_shutdown_raster() before switching games.
 //
+//   fbo_mono (same dims as fbo_raster, GL_RGBA8) - mono monitor effect target:
+//           img5b [attachment 0] - img5a processed by the mono CRT shader
+//           Allocated/released alongside fbo_raster.
+//
 // Format rationale:
 //   fbo1/fbo2/fbo3 use GL_RGB8 (no alpha). The vector blur, glow, and
 //   trail/feedback passes use additive blending (GL_ONE, GL_ONE) and
@@ -45,35 +49,40 @@
 #ifndef GL_FBO_H
 #define GL_FBO_H
 
-#include "sys_gl.h"
 #include <initializer_list>
+#include "render_types.h"
 
 // ---------------------------------------------------------------------------
 // FBO handles
 // ---------------------------------------------------------------------------
-extern GLuint fbo1;
-extern GLuint fbo2;
-extern GLuint fbo3;
-extern GLuint fbo4;
-extern GLuint fbo_raster;
+extern rfbo_t fbo1;
+extern rfbo_t fbo2;
+extern rfbo_t fbo3;
+extern rfbo_t fbo4;
+
+// Dual-filter glow pyramid ([main] glow_filter=1): five single-attachment
+// FBOs at 128/64/32/64/128, GL_RGB8, no mipmaps. Levels 0-2 are the down
+// chain, 3-4 the up chain; 256-side endpoints are img3a (in) / img3b (out).
+constexpr int GLOW_PYR_LEVELS = 5;
+extern rfbo_t fbo_pyr[GLOW_PYR_LEVELS];
+extern rtex_t img_pyr[GLOW_PYR_LEVELS];
 
 // ---------------------------------------------------------------------------
 // Texture handles
 // fbo1 textures (GL_RGB8)
-extern GLuint img1a;    // current frame draw target
-extern GLuint img1b;    // feedback / trail buffer
-extern GLuint img1c;    // secondary feedback buffer
+extern rtex_t img1a;    // current frame draw target
+extern rtex_t img1b;    // feedback / trail buffer
+extern rtex_t img1c;    // secondary feedback buffer
 // fbo2 textures (GL_RGB8)
-extern GLuint img2a;    // 512x512 downsample for glow
-extern GLuint img2b;    // spare / reserved
+extern rtex_t img2a;    // 512x512 downsample for glow
+extern rtex_t img2b;    // spare / reserved
 // fbo3 textures (GL_RGB8)
-extern GLuint img3a;    // 256x256 blur pingpong A
-extern GLuint img3b;    // 256x256 blur pingpong B
+extern rtex_t img3a;    // 256x256 blur pingpong A
+extern rtex_t img3b;    // 256x256 blur pingpong B
 // fbo4 textures (GL_RGBA8)
-extern GLuint img4a;    // final composited frame
-extern GLuint img4b;    // overlay1 scratch buffer (CRT-only, pre-backdrop)
-// fbo_raster textures (GL_RGBA8)
-extern GLuint img5a;    // game-native raster surface (game must be loaded)
+extern rtex_t img4a;    // final composited frame
+extern rtex_t img4b;    // overlay1 scratch buffer (CRT-only, pre-backdrop)
+// [vectrex-port] removed: img5a/img5b and mono_fbo_w/h (raster/CRT targets).
 // ---------------------------------------------------------------------------
 
 // FBO1/FBO4 dimensions (1024x1024, fixed for the whole pipeline).
@@ -96,14 +105,7 @@ extern const float height3;
 // ---------------------------------------------------------------------------
 void fbo_init();
 
-// ---------------------------------------------------------------------------
-// fbo_init_raster
-// Allocates fbo_raster / img5a at the current game's native resolution
-// scaled by prescale (GL_RGBA8). Must be called AFTER a game is loaded
-// (Machine->gamedrv must be valid). Safe to call more than once - releases
-// any previous allocation first.
-// ---------------------------------------------------------------------------
-void fbo_init_raster();
+// [vectrex-port] removed: fbo_init_raster(), fbo_resize_mono().
 
 // ---------------------------------------------------------------------------
 // fbo_shutdown
@@ -112,12 +114,7 @@ void fbo_init_raster();
 // ---------------------------------------------------------------------------
 void fbo_shutdown();
 
-// ---------------------------------------------------------------------------
-// fbo_shutdown_raster
-// Releases fbo_raster and img5a. Call before switching games so the next
-// fbo_init_raster() gets the correct new dimensions.
-// ---------------------------------------------------------------------------
-void fbo_shutdown_raster();
+// [vectrex-port] removed: fbo_shutdown_raster().
 
 // ---------------------------------------------------------------------------
 // fbo_generate_mipmaps
@@ -126,13 +123,6 @@ void fbo_shutdown_raster();
 // trilinear and anisotropic filtering work correctly.
 // Example: fbo_generate_mipmaps({ img1a, img1b, img1c });
 // ---------------------------------------------------------------------------
-void fbo_generate_mipmaps(std::initializer_list<GLuint> textures);
-
-// ---------------------------------------------------------------------------
-// CHECK_FRAMEBUFFER_STATUS
-// Queries and logs the completeness status of the currently bound FBO.
-// Returns the raw GL status enum. Used internally after each fbo creation.
-// ---------------------------------------------------------------------------
-GLenum CHECK_FRAMEBUFFER_STATUS();
+void fbo_generate_mipmaps(std::initializer_list<rtex_t> textures);
 
 #endif // GL_FBO_H

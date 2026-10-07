@@ -47,12 +47,16 @@
 #define IDC_GLOW_VALUE       202
 #define IDC_LINEWIDTH_SLIDER 203
 #define IDC_LINEWIDTH_VALUE  204
-#define IDC_POINT_SLIDER     205
-#define IDC_POINT_VALUE      206
+#define IDC_SMOOTH_SLIDER    205
+#define IDC_SMOOTH_VALUE     206
 #define IDC_DOT_SLIDER       207
 #define IDC_DOT_VALUE        208
 #define IDC_SAVE_DEFAULT     209
 #define IDC_RESET_DEFAULT    210
+#define IDC_CORNER_SLIDER    250
+#define IDC_CORNER_VALUE     251
+#define IDC_GLOWFILTER_COMBO 252
+#define IDC_TRAIL_COMBO      253
 
 // Audio page + controls
 #define IDD_PAGE_AUDIO       243
