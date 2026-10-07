@@ -90,7 +90,7 @@ static bool         g_applyingGameVideo = false;  // guard: don't save while res
 static int   g_defGlow      = 8;
 static float g_defLineWidth = 1.5f, g_defDotSize = 2.0f;
 static float g_defSmoothing = 1.0f, g_defCorner = 0.85f;
-static int   g_defGlowFilter = 0, g_defTrailLevel = 1;
+static int   g_defGlowFilter = 1, g_defTrailLevel = 1;
 static bool  g_defGlowOn = true, g_defTrailOn = false, g_defOverlayOn = true;
 
 static std::string HostRomBaseName(const char* utf8_path);
@@ -1004,13 +1004,13 @@ int host_run(HINSTANCE hInstance, int nCmdShow, const HostApp* app)
     if (app->init) app->init(__argc, __argv);
 
     // Read the global video defaults -- the baseline before any per-game override.
-    // These come from emulator.ini [video] (hand-editable); trail defaults OFF.
+    // These come from emulator.ini [video] (hand-editable); pyramid glow ON, trail OFF.
     g_defGlow      = get_config_int("video", "glow", 8);
     g_defLineWidth = get_config_float("video", "linewidth", 1.5f);
     g_defDotSize   = get_config_float("video", "dotsize", 2.0f);
     g_defSmoothing = get_config_float("video", "smoothing", 1.0f);
     g_defCorner    = get_config_float("video", "corner", 0.85f);
-    g_defGlowFilter = get_config_int("video", "glow_filter", 0);
+    g_defGlowFilter = get_config_int("video", "glow_filter", 1);   // pyramid glow by default
     g_defTrailLevel = get_config_int("video", "trail_level", 1);
     // Pyramid-glow tuning is global and ini-only (AAE defaults).
     if (g_app.set_glow2)

@@ -40,7 +40,7 @@ struct settings {
 	float line_smoothing    = 1.0f;    // beam edge feather, logical units
 	float corner_strength   = 0.85f;   // join disc radius / beam half-width
 	int   shots_textured    = 0;       // Vectrex has no textured shots
-	int   glow_filter       = 0;       // 0 = classic accumulate blur, 1 = dual-filter pyramid
+	int   glow_filter       = 1;       // 0 = classic accumulate blur, 1 = dual-filter pyramid (default)
 	float glow2_gain        = 10.0f;   // pyramid: final output gain
 	float glow2_spread      = 1.0f;    // pyramid: tap radius scale
 	float glow2_tail        = 0.6f;    // pyramid: down-level re-injection weight
