@@ -37,6 +37,7 @@
     <ClInclude Include="project\cpu_m6809.h" />
     <ClInclude Include="project\cpu_control.h" />
     <ClInclude Include="project\emulator.h" />
+    <ClInclude Include="project\cart_overlay.h" />
     <ClInclude Include="project\vecx.h" />
     <ClInclude Include="project\via6522.h" />
     <ClInclude Include="system\deftypes.h" />
@@ -93,6 +94,7 @@
     <ClCompile Include="project\ay8910.cpp" />
     <ClCompile Include="project\cpu_m6809.cpp" />
     <ClCompile Include="project\emulator.cpp" />
+    <ClCompile Include="project\cart_overlay.cpp" />
     <ClCompile Include="project\vecx.cpp" />
     <ClCompile Include="project\via6522.cpp" />
     <ClCompile Include="system\iniFile.cpp" />

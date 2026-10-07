@@ -56,6 +56,7 @@
 #include "opengl_renderer.h"   // init_gl, set_render, render, emulator_on_window_resize, glcode_vector_hard_clear_fbo1
 #include "emu_vector_draw.h"   // add_line, add_dot, cache_clear
 #include "aae_mame_driver.h"   // config, art_loaded[], game_rect_*
+#include "cart_overlay.h"      // cart_find_overlay: ROM -> overlay artwork
 #include "framework.h"         // GLEW + SCREEN_W / SCREEN_H
 #include "texture_handler.h"   // art_tex[], art_loaded[] (OVERLAY2 gel slot)
 #include "stb_image.h"         // overlay decode (implementation lives in sys_texture.cpp)
@@ -459,25 +460,21 @@ void emulator_load_cart(const char* utf8_path)
 
 	vecx_reset();
 
-	// [vectrex-port] Auto-load a matching overlay from the artwork/ folder by the
-	// ROM's base filename, e.g. berzerk.bin -> artwork/berzerk.png (fopen is
-	// case-insensitive on Windows). Fall back to <romname>.png beside the cart.
-	// If neither exists, clear any previous overlay so a new game does not inherit
-	// the old color gel.
+	// [vectrex-port] Auto-load the matching overlay: by ROM filename, then by the
+	// cart's CRC32 or header title (see cart_overlay.h and
+	// data/artwork/aliases.ini). If nothing matches, clear any previous overlay
+	// so a new game does not inherit the old color gel.
 	{
-		std::string p(utf8_path);
-		size_t slash = p.find_last_of("/\\");
-		std::string fname = (slash == std::string::npos) ? p : p.substr(slash + 1);
-		size_t dot = fname.find_last_of('.');
-		std::string base = (dot == std::string::npos) ? fname : fname.substr(0, dot);
-
-		std::string art = "data/artwork/" + base + ".png";     // preferred location
-		std::string beside = (dot == std::string::npos ? p : p.substr(0, p.find_last_of('.'))) + ".png";
-
-		FILE* of = fopen(art.c_str(), "rb");
-		if (of) { fclose(of); emulator_load_overlay(art.c_str()); }
-		else if ((of = fopen(beside.c_str(), "rb")) != NULL) { fclose(of); emulator_load_overlay(beside.c_str()); }
-		else { emulator_clear_overlay(); }
+		std::string why;
+		std::string art = cart_find_overlay(&g_cpu_mem[0], n, utf8_path, "data/artwork", &why);
+		const std::vector<std::string> title = cart_title_lines(&g_cpu_mem[0], n);
+		std::string shown;
+		for (const auto& l : title) shown += (shown.empty() ? "" : " / ") + l;
+		LOG_INFO("CART title: '%s' crc32=%s -> overlay %s%s%s", shown.c_str(),
+			cart_crc32(&g_cpu_mem[0], n).c_str(), art.empty() ? "none" : art.c_str(),
+			art.empty() ? "" : " via ", why.c_str());
+		if (!art.empty()) emulator_load_overlay(art.c_str());
+		else emulator_clear_overlay();
 	}
 }
 
