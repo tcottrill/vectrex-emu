@@ -198,6 +198,9 @@
     <ClInclude Include="aae_video\vector_draw_gl.h">
       <Filter>Source Files\aae_video</Filter>
     </ClInclude>
+    <ClInclude Include="aae_video\phosphor.h">
+      <Filter>Source Files\aae_video</Filter>
+    </ClInclude>
     <ClInclude Include="aae_video\gl_fbo.h">
       <Filter>Source Files\aae_video</Filter>
     </ClInclude>

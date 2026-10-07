@@ -35,6 +35,8 @@ void vecx_reset (void);
  * frames rendered during this call (0 or 1 at the normal cadence). The host
  * presents only when this is > 0, so a frame is never shown twice. */
 int  vecx_emu (long cycles);
+/* Emulated time covered by the frame osint_render() is drawing, in seconds. */
+double vecx_frame_seconds(void);
 
 /* CPU diagnostics (current 6809 program counter / stack pointer). */
 unsigned vecx_cpu_pc (void);

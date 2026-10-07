@@ -247,6 +247,7 @@ void osint_render(void)
 
 	// Draw the beams into FBO1, then composite phosphor trail + glow bloom +
 	// OVERLAY2 gel -> FBO4 -> backbuffer.
+	set_frame_seconds((float)vecx_frame_seconds());   // phosphor fade covers this frame
 	render();
 }
 
@@ -597,7 +598,8 @@ void emulator_get_glow2(float* gain, float* spread, float* tail, float* core)
 }
 
 // Phosphor trail: on/off (the toggle) and persistence level 1..3 (LITTLE / MORE /
-// MAX, per-frame decay 0.825 / 0.86 / 0.93) compose as vectrail = on ? level : 0.
+// MAX: fades to 10% in 80 / 167 / 330 ms of emulated time; see phosphor.h)
+// compose as vectrail = on ? level : 0.
 static int  s_trail_level = 1;
 static bool s_trail_on = false;
 static void emulator_apply_trail(void) { config.vectrail = s_trail_on ? s_trail_level : 0; }

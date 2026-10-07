@@ -45,6 +45,8 @@
 // ---------------------------------------------------------------------------
 rfbo_t fbo_pyr[GLOW_PYR_LEVELS] = {};
 rtex_t img_pyr[GLOW_PYR_LEVELS] = {};
+rfbo_t fbo_persist = 0;          // [vectrex-port] phosphor persistence
+rtex_t img_persist[2] = {};
 
 rfbo_t fbo1       = 0;
 rfbo_t fbo2       = 0;
@@ -154,12 +156,14 @@ static GLenum CHECK_FRAMEBUFFER_STATUS()
 //   - Allocates level 0 only with GL_LINEAR min/mag.
 //   - Useful for intermediate buffers that are never minified.
 // ---------------------------------------------------------------------------
-static GLuint create_texture(float w, float h, bool mipmaps = true, bool use_alpha = false)
+static GLuint create_texture(float w, float h, bool mipmaps = true, bool use_alpha = false,
+                             bool half_float = false)
 {
     // Select the correct sized internal format and base format.
     // These two must always be compatible with each other.
-    const GLenum internalFmt = use_alpha ? GL_RGBA8 : GL_RGB8;
-    const GLenum baseFmt     = use_alpha ? GL_RGBA  : GL_RGB;
+    // [vectrex-port] half_float: RGBA16F for the phosphor persistence buffers.
+    const GLenum internalFmt = half_float ? GL_RGBA16F : (use_alpha ? GL_RGBA8 : GL_RGB8);
+    const GLenum baseFmt     = (use_alpha || half_float) ? GL_RGBA : GL_RGB;
 
     GLuint tex = 0;
     glGenTextures(1, &tex);
@@ -238,6 +242,7 @@ struct FboAttachment
     // stale mip - the failure mode that forces per-frame glGenerateMipmap
     // everywhere else.
     bool                  mipmaps = true;
+    bool                  half_float = false;   // [vectrex-port] RGBA16F
 };
 
 static void create_fbo(rfbo_t& fbo,
@@ -249,7 +254,7 @@ static void create_fbo(rfbo_t& fbo,
     int slot = 0;
     for (const auto& a : attachments)
     {
-        *a.texOut = create_texture(a.dims[0], a.dims[1], a.mipmaps, a.use_alpha);
+        *a.texOut = create_texture(a.dims[0], a.dims[1], a.mipmaps, a.use_alpha, a.half_float);
 
         // Attach mip level 0. The rest of the mip chain is regenerated
         // separately after rendering (see fbo_generate_mipmaps).
@@ -345,6 +350,14 @@ void fbo_init()
         });
     }
 
+    // [vectrex-port] Phosphor persistence ping-pong (replaces the img1c trail):
+    // two 1024x1024 RGBA16F attachments, no mips. Float so the per-frame decay
+    // multiply fades smoothly to black instead of sticking at low 8-bit values.
+    create_fbo(fbo_persist, {
+        { &img_persist[0], { width, height }, false, false, true },
+        { &img_persist[1], { width, height }, false, false, true }
+    });
+
     LOG_INFO("fbo_init: done.");
 }
 
@@ -378,6 +391,12 @@ void fbo_shutdown()
     glDeleteTextures(GLOW_PYR_LEVELS, img_pyr);
     glDeleteFramebuffers(GLOW_PYR_LEVELS, fbo_pyr);
     for (int i = 0; i < GLOW_PYR_LEVELS; ++i) { img_pyr[i] = 0; fbo_pyr[i] = 0; }
+
+    // [vectrex-port] Phosphor persistence teardown.
+    glDeleteTextures(2, img_persist);
+    glDeleteFramebuffers(1, &fbo_persist);
+    img_persist[0] = img_persist[1] = 0;
+    fbo_persist = 0;
 }
 
 

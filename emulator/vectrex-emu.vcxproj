@@ -78,6 +78,7 @@
     <ClInclude Include="aae_video\emu_vector_draw.h" />
     <ClInclude Include="aae_video\vector_draw.h" />
     <ClInclude Include="aae_video\vector_draw_gl.h" />
+    <ClInclude Include="aae_video\phosphor.h" />
     <ClInclude Include="aae_video\shader_definitions.h" />
     <ClInclude Include="aae_video\aae_mame_driver.h" />
     <ClInclude Include="aae_video\config.h" />

@@ -7,6 +7,7 @@
 #include "aae_mame_driver.h"
 #include "vector_draw.h"
 #include "emu_vector_draw.h"
+#include "phosphor.h"
 #include "sys_log.h"
 
 namespace Log { void write(Level, const char*, const char*, int, const char*, ...) {} }
@@ -101,6 +102,21 @@ int main()
     // cache_clear empties the batch.
     cache_clear();
     check("cache_clear: batch empty", beam_get_lines().empty());
+
+    // Phosphor persistence decay (phosphor.h).
+    const float more = phosphor_fade_seconds(2);
+    check("phosphor: no time passed keeps everything", near(phosphor_keep(0.0f, more), 1.0f));
+    check("phosphor: 10% left after the fade time", near(phosphor_keep(more, more), 0.1f));
+    check("phosphor: level 2 == Vectrexy 0.01^(dt*3) at 60 Hz",
+          near(phosphor_keep(1.0f / 60, more), std::pow(0.01f, 3.0f / 60)));
+    {
+        // Rate independence: fifty 20 ms steps decay as much as one 1 s step.
+        float k50 = 1.0f;
+        for (int i = 0; i < 50; ++i) k50 *= phosphor_keep(0.02f, more);
+        check("phosphor: 50 x 20 ms == 1 x 1 s", std::fabs(k50 - phosphor_keep(1.0f, more)) < 1e-6f);
+    }
+    check("phosphor: levels get longer",
+          phosphor_fade_seconds(1) < phosphor_fade_seconds(2) && phosphor_fade_seconds(2) < phosphor_fade_seconds(3));
 
     std::printf(failures ? "\nSOME TESTS FAILED (%d)\n" : "\nALL TESTS PASSED\n", failures);
     return failures ? 1 : 0;

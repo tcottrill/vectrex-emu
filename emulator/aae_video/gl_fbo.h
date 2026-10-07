@@ -67,6 +67,11 @@ constexpr int GLOW_PYR_LEVELS = 5;
 extern rfbo_t fbo_pyr[GLOW_PYR_LEVELS];
 extern rtex_t img_pyr[GLOW_PYR_LEVELS];
 
+// [vectrex-port] Phosphor persistence (replaces AAE's img1c trail): one FBO
+// with two 1024x1024 RGBA16F attachments used as a ping-pong pair, no mips.
+extern rfbo_t fbo_persist;
+extern rtex_t img_persist[2];
+
 // ---------------------------------------------------------------------------
 // Texture handles
 // fbo1 textures (GL_RGB8)

@@ -83,6 +83,9 @@ static long frame_cycles = 0;    /* cycles since the last render */
 static bool t2_armed = false;    /* T2 was re-armed since the last check */
 static bool free_running = false;     /* no T2 frames: render on frame_period */
 static long frame_period = 0;         /* last T2-locked frame length, cycles */
+static long last_frame_cycles = 30000; /* length of the frame being rendered */
+
+double vecx_frame_seconds(void) { return (double)last_frame_cycles / VECTREX_MHZ; }
 static int audio_cycles = 0; // cycles within the current 1/50-second audio block
 
 /* ===== Vectrex board glue: VIA callbacks (invoked from via6522.cpp) ======= */
@@ -305,6 +308,7 @@ int vecx_emu(long cycles)
 			} else {
 				free_running = true;
 			}
+			last_frame_cycles = frame_cycles;
 			frame_cycles = 0;
 			osint_render();
 			frames_drawn++;

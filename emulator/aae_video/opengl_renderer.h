@@ -28,6 +28,9 @@ void set_render();
 // present via final_render().
 void render();
 void final_render(int left, int right, int bottom, int top);
+// [vectrex-port] Emulated time (seconds) the next render covers; the phosphor
+// persistence fades by this, so trails last the same time at any frame rate.
+void set_frame_seconds(float seconds);
 void set_render_fbo4();
 void end_render_fbo4();
 void glcode_vector_hard_clear_fbo1();

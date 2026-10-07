@@ -36,13 +36,14 @@
 // FBO / Texture layout:
 //   FBO1 - img1a (attachment 0): current frame render target (1024x1024)
 //          img1b (attachment 1): feedback/trail accumulation buffers
-//          img1c (attachment 2): additional feedback blend buffer
+//          img1c (attachment 2): AAE trail buffer (unused: see fbo_persist)
 //   FBO2 - img2a: 512x512 downsampled image for glow blur pass 1
 //   FBO3 - img3a (attachment 0): 256x256 pingpong blur target A
 //          img3b (attachment 1): 256x256 pingpong blur target B
 //   FBO4 - img4a: final composited frame, blitted to screen at window size
 //          img4b: CRT image scratch (pre-backdrop)
 //   fbo_pyr[0..4]: dual-filter glow pyramid (glow_filter=1)
+//   fbo_persist  : img_persist[0/1], RGBA16F phosphor persistence ping-pong
 //
 // Artwork texture layout:
 //   art_tex[0] - Backdrop (behind game screen)
@@ -61,6 +62,8 @@
 #include "gl_shader.h"
 #include "vector_draw.h"
 #include "MathUtils.h"
+#include "shader_util.h"       // [vectrex-port] CompileShader / LinkShaderProgram (persistence pass)
+#include "phosphor.h"          // [vectrex-port] phosphor_keep / phosphor_fade_seconds
 #include <chrono>   // for optional frame-time profiling
 
 // ---------------------------------------------------------------------------
@@ -72,6 +75,44 @@ Rect2* screen_rect = nullptr;
 
 // Projection mirrored from set_ortho for the core-profile quad shaders.
 aae::math::mat4 g_proj;
+
+// [vectrex-port] Phosphor persistence state (see render_phosphor_persistence).
+static GLuint s_progPersist = 0;          // decay + max-combine program
+static int    s_persist_cur = 0;          // img_persist[] index holding the latest image
+static bool   s_persist_live = false;     // false: buffer stale, start from black
+static float  s_frame_seconds = 0.02f;    // emulated time covered by this render
+
+void set_frame_seconds(float seconds) { s_frame_seconds = seconds; }
+
+static const char* kPersistVS = R"glsl(
+#version 330 core
+layout(location = 0) in vec2 aPos;
+layout(location = 1) in vec2 aUV;
+uniform mat4 uProj;
+out vec2 TexCoord;
+void main()
+{
+    TexCoord = aUV;
+    gl_Position = uProj * vec4(aPos, 0.0, 1.0);
+}
+)glsl";
+
+static const char* kPersistFS = R"glsl(
+#version 330 core
+in vec2 TexCoord;
+out vec4 FragColor;
+uniform sampler2D uHistory;   // previous persistence image
+uniform sampler2D uFrame;     // this frame (img1b)
+uniform float uKeep;          // fraction of the history kept this frame
+uniform float uCutoff;        // decayed history below this goes black
+void main()
+{
+    vec3 hist = texture(uHistory, TexCoord).rgb * uKeep;
+    if (!any(greaterThan(hist, vec3(uCutoff))))
+        hist = vec3(0.0);
+    FragColor = vec4(max(hist, texture(uFrame, TexCoord).rgb), 1.0);
+}
+)glsl";
 
 // ---------------------------------------------------------------------------
 // orientation_to_rect2_rotation
@@ -152,6 +193,8 @@ int init_gl(void)
 
 		// --- Shader compilation ---
 		init_shader();
+		s_progPersist = LinkShaderProgram(CompileShader(GL_VERTEX_SHADER, kPersistVS, "persist"),
+		                                  CompileShader(GL_FRAGMENT_SHADER, kPersistFS, "persist"));
 
 		glClear(GL_COLOR_BUFFER_BIT);
 		LOG_INFO("OpenGL initialization complete.");
@@ -170,6 +213,8 @@ int init_gl(void)
 void end_gl()
 {
 	beam_shutdown();
+	glDeleteProgram(s_progPersist);
+	s_progPersist = 0;
 	fbo_shutdown();
 	delete screen_rect;
 	screen_rect = nullptr;
@@ -207,6 +252,8 @@ void glcode_vector_hard_clear_fbo1()
 
 	glDrawBuffer(GL_COLOR_ATTACHMENT2);
 	glClear(GL_COLOR_BUFFER_BIT);
+
+	s_persist_live = false;   // [vectrex-port] persistence restarts from black
 
 	// Restore previous FBO and viewport.
 	glBindFramebuffer(GL_FRAMEBUFFER, (GLuint)prevFbo);
@@ -512,6 +559,68 @@ static void render_blur_dualfilter()
 	unbind_shader();
 }
 
+// ---------------------------------------------------------------------------
+// [vectrex-port] Phosphor persistence, after Vectrexy's DarkenTexture pass.
+//
+//   persist = max(decayed history, this frame)     (RGBA16F ping-pong)
+//   img1b   = persist                              (feeds glow + CRT combine)
+//
+// The history decays by phosphor_keep(dt): exponential in elapsed EMULATED
+// time, so a 30 Hz game trails for the same time as a 50 Hz one, and pausing
+// freezes the fade. Decayed history under kPhosphorCutoff snaps to black.
+// Lines are combined with max, not added, so overlapping trails never
+// brighten past the beam.
+// ---------------------------------------------------------------------------
+static void clear_phosphor_persistence()
+{
+	if (!fbo_persist) return;
+	glBindFramebuffer(GL_FRAMEBUFFER, fbo_persist);
+	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+	glDrawBuffer(GL_COLOR_ATTACHMENT0); glClear(GL_COLOR_BUFFER_BIT);
+	glDrawBuffer(GL_COLOR_ATTACHMENT1); glClear(GL_COLOR_BUFFER_BIT);
+}
+
+static void render_phosphor_persistence()
+{
+	// Trail just turned on (or the game changed): don't resurrect an old image.
+	if (!s_persist_live) {
+		clear_phosphor_persistence();
+		s_persist_live = true;
+	}
+
+	const int src = s_persist_cur;
+	const int dst = 1 - src;
+	const float keep = phosphor_keep(s_frame_seconds, phosphor_fade_seconds(config.vectrail));
+
+	// persist[dst] = max(persist[src] * keep, img1b)
+	glBindFramebuffer(GL_FRAMEBUFFER, fbo_persist);
+	glDrawBuffer(GL_COLOR_ATTACHMENT0 + dst);
+	set_ortho(1024, 1024);
+	glDisable(GL_BLEND);
+
+	glUseProgram(s_progPersist);
+	set_uniform1i(s_progPersist, "uHistory", 0);
+	set_uniform1i(s_progPersist, "uFrame", 1);
+	set_uniform1f(s_progPersist, "uKeep", keep);
+	set_uniform1f(s_progPersist, "uCutoff", kPhosphorCutoff);
+	glActiveTexture(GL_TEXTURE1); set_texture(&img1b, 1, 0, 0, 0);
+	glActiveTexture(GL_TEXTURE0); set_texture(&img_persist[src], 1, 0, 0, 0);
+	FS_Rect(0, 1024);
+	glUseProgram(0);
+	glActiveTexture(GL_TEXTURE1); glBindTexture(GL_TEXTURE_2D, 0);
+	glActiveTexture(GL_TEXTURE0);
+
+	// img1b = persist[dst], a straight copy for the glow and CRT combine.
+	glBindFramebuffer(GL_FRAMEBUFFER, fbo1);
+	glDrawBuffer(GL_COLOR_ATTACHMENT1);
+	set_texture(&img_persist[dst], 1, 0, 0, 0);
+	FS_Rect(0, 1024);
+	glEnable(GL_BLEND);
+
+	s_persist_cur = dst;
+	check_gl_error_named("render_phosphor_persistence");
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // RENDERING PIPELINE - STEPS 1, 2, and 3                                    //
 ////////////////////////////////////////////////////////////////////////////////
@@ -566,7 +675,7 @@ void render()
 //
 // Layer order (back to front):
 //   1. img1a -> img1b : copy current frame
-//   3. img1b -> img1c : vector trail / phosphor persistence (if enabled)
+//   3. img1b -> persist -> img1b : phosphor persistence (if enabled)
 //   4. FBO2/3 blur    : glow downsample+blur passes (if enabled)
 //   5. fragMulti shader: composites img1b + blur + trail in one pass
 //   5C. backdrop + CRT image + OVERLAY2 gel into img4a
@@ -602,27 +711,16 @@ void final_render(int left, int right, int bottom, int top)
 	FS_Rect(0, 1024);
 
 	//--------------------------------------------------------------------------
-	// LAYER 3: Vector trail / phosphor persistence (img1b -> img1c).
+	// LAYER 3: Phosphor persistence (img1b -> persistence buffer -> img1b).
+	// [vectrex-port] Replaces AAE's img1c trail (a fixed per-render fade added
+	// at 0.25) with Vectrexy-style persistence: the image itself fades by
+	// elapsed emulated time, and the glow downsample and CRT combine both read
+	// the faded result from img1b.
 	//--------------------------------------------------------------------------
 	if (config.vectrail && !emulator_is_gui_active())
-	{
-		glDrawBuffer(GL_COLOR_ATTACHMENT2);
-		glDisable(GL_DITHER);
-		set_texture(&img1b, 1, 0, 0, 0);
-		glBlendFunc(GL_ONE_MINUS_DST_COLOR, GL_SRC_ALPHA);
-
-		float tr = 1.0f, tg = 1.0f, tb = 1.0f, ta = 1.0f;
-		switch (config.vectrail)
-		{
-		case 1:  ta = 0.825f; break;
-		case 2:  ta = 0.86f;  break;
-		case 3:  ta = 0.93f;  break;
-		default: tr = tg = tb = 0.95f; ta = 1.0f; break;
-		}
-
-		FS_Rect(0, 1024, tr, tg, tb, ta);
-		fbo_generate_mipmaps({ img1b });
-	}
+		render_phosphor_persistence();
+	else
+		s_persist_live = false;
 
 	//--------------------------------------------------------------------------
 	// LAYER 4: Glow blur passes (FBO2 and FBO3).
@@ -682,7 +780,9 @@ void final_render(int left, int right, int bottom, int top)
 	bleh = glGetUniformLocation(fragMulti, "mytex3"); glUniform1i(bleh, 2);
 	bleh = glGetUniformLocation(fragMulti, "mytex4"); glUniform1i(bleh, 3);
 
-	set_uniform1i(fragMulti, "usefb", config.vectrail);
+	// [vectrex-port] Persistence already lives in img1b (LAYER 3), so the
+	// shader's separate img1c feedback layer stays off.
+	set_uniform1i(fragMulti, "usefb", 0);
 	set_uniform1i(fragMulti, "useglow", useglow);
 	set_uniform1f(fragMulti, "glowamt", (float)(config.vecglow * 0.01));
 	set_uniform1i(fragMulti, "brighten", gamenum);
