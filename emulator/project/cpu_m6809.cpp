@@ -679,7 +679,10 @@ int cpu_m6809::step()
     // at least one cycle of forward progress so the caller's peripherals keep
     // advancing and can raise the interrupt that wakes the CPU. Without this the
     // vecx loop would spin with the VIA frozen and never deliver the wake IRQ.
-    if (used < 1) used = 1;
+    if (used < 1) {
+        used = 1;
+        clocktickstotal += 1;   // keep get_ticks() in step with the cycles reported
+    }
     return used;
 }
 

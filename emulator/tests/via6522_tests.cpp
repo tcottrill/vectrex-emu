@@ -12,6 +12,7 @@ void via_hook_on_orb_written(uint8_t, uint8_t) {}
 void via_hook_on_ora_written(uint8_t, uint8_t) {}
 uint8_t via_hook_read_port_a(uint8_t, uint8_t ora) { return ora; }
 uint8_t via_hook_get_compare_bit(void) { return 0; }
+void via_hook_on_t2_armed(void) {}
 
 // --- tiny assert framework ---------------------------------------------------
 static int g_fail = 0, g_checks = 0;

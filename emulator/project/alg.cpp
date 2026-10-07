@@ -105,6 +105,11 @@ static inline void alg_addline(long x0, long y0, long x1, long y1, unsigned char
         vectors_erse[index].color = VECTREX_COLORS;
     }
 
+    /* A frame can run up to 150,000 cycles (vecx.cpp FRAME_LOCK_TIMEOUT), so
+     * the list can in principle fill; drop rather than overrun it. */
+    if (vector_draw_cnt >= VECTOR_CNT)
+        return;
+
     vectors_draw[vector_draw_cnt].x0 = x0;
     vectors_draw[vector_draw_cnt].y0 = y0;
     vectors_draw[vector_draw_cnt].x1 = x1;

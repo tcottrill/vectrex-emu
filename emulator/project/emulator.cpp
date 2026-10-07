@@ -77,8 +77,9 @@ unsigned char* ast_soundbuffer = NULL;
 // speed). Set by the host via emulator_set_frame_rate() before the loop starts.
 double g_emu_fps = 50.0;
 
-// [vectrex-port] osint_render() fires from inside vecx_emu() only at the Vectrex's
-// ~50 Hz frame boundary. When we present faster (e.g. 60 Hz), some presents run a
+// [vectrex-port] osint_render() fires from inside vecx_emu() once per Vectrex game
+// frame (the BIOS re-arming VIA timer 2: 50 Hz for nearly every cart; see
+// vecx.cpp). When we present faster (e.g. 60 Hz), some presents run a
 // cycle chunk that completes no Vectrex frame -> osint_render() doesn't run. This
 // flag lets emulator_run() detect that and re-blit the last composited frame
 // instead of swapping to a stale/empty back buffer (which caused 60 Hz flicker).

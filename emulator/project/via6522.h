@@ -31,6 +31,9 @@ void via_hook_on_ora_written(uint8_t orb, uint8_t ora);
 uint8_t via_hook_read_port_a(uint8_t orb, uint8_t ora);
 // Bit 5 “compare” input for PB reads (0x20 if >, else 0).
 uint8_t via_hook_get_compare_bit(void);
+// Called after a T2 high-byte write (timer 2 loaded and armed). The Vectrex
+// BIOS Wait_Recal re-arms T2 once per game frame.
+void via_hook_on_t2_armed(void);
 
 // ---- VIA 6522 API -----------------------------------------------------------
 void     via_reset(void);

@@ -62,7 +62,27 @@ static unsigned snd_select = 0;
  * AY core's AY8910_HOST_FPS and the mixer/stream frame rate). */
 #define AY8910_HOST_FPS_VECX 50
 
-static long fcycles;
+/* Video frame cadence. A Vectrex game frame ends when the BIOS Wait_Recal
+ * re-arms VIA timer 2 (30,000 cycles = 50 Hz by default), so the composed
+ * picture is rendered on that event: one picture per game frame. Guards:
+ *   - a T2 arm sooner than FRAME_MIN_CYCLES after the last render is not a
+ *     frame boundary (T2 used for some other delay) and is ignored;
+ *   - with no frame boundary for FRAME_LOCK_TIMEOUT cycles (0.1 s) the
+ *     picture is rendered anyway and
+ *     the cadence goes free-running: like MAME, it keeps rendering at the
+ *     last known frame period (here the measured length of the last T2
+ *     frame) until T2 is re-armed, which re-locks to the game's frames.
+ *     Carts that never use T2 free-run at alg_frame_cycles_init() (50,000
+ *     cycles, the old 30 Hz window). The timeout is not bounded by the T2
+ *     period: when a frame's drawing outlasts T2, Wait_Recal returns late, so
+ *     frames overrun (Polar Rescue and Vector Vaders pass 70,000 cycles).
+ *     Firing mid-frame would split it into a full and a near-empty picture. */
+#define FRAME_MIN_CYCLES   20000    /* faster than 75 Hz is not a frame */
+#define FRAME_LOCK_TIMEOUT 150000   /* no T2 frame for 0.1 s: free-run */
+static long frame_cycles = 0;    /* cycles since the last render */
+static bool t2_armed = false;    /* T2 was re-armed since the last check */
+static bool free_running = false;     /* no T2 frames: render on frame_period */
+static long frame_period = 0;         /* last T2-locked frame length, cycles */
 static int audio_cycles = 0; // cycles within the current 1/50-second audio block
 
 /* ===== Vectrex board glue: VIA callbacks (invoked from via6522.cpp) ======= */
@@ -113,6 +133,11 @@ uint8_t via_hook_read_port_a(uint8_t orb, uint8_t ora)
 		return snd_select == 14 ? (uint8_t)snd_regs[14] : ay8910_read(0);
 	}
 	return ora;
+}
+
+void via_hook_on_t2_armed(void)
+{
+	t2_armed = true;
 }
 
 uint8_t via_hook_get_compare_bit(void)
@@ -210,7 +235,10 @@ void vecx_reset(void)
 
 	ay8910_reset(-1);   /* reset all AY chips (no-op until ay8910_sh_start) */
 
-	fcycles = alg_frame_cycles_init();
+	frame_cycles = 0;
+	t2_armed = false;
+	free_running = false;
+	frame_period = alg_frame_cycles_init();
 
 	if (!g_cpu)
 		g_cpu = new cpu_m6809(g_cpu_mem, m6809_readmem, m6809_writemem, 0);
@@ -259,12 +287,25 @@ int vecx_emu(long cycles)
 
 		cycles -= (long)icycles;
 
-		fcycles -= (long)icycles;
+		frame_cycles += (long)icycles;
 
-		if (fcycles < 0) {
+		/* A T2 arm ends a frame once it is plausibly a frame apart; while
+		 * free-running, any arm re-locks (one short frame, then in phase). */
+		const bool frame_end = t2_armed && (free_running || frame_cycles >= FRAME_MIN_CYCLES);
+		t2_armed = false;
+		const long timeout = free_running ? frame_period : FRAME_LOCK_TIMEOUT;
+
+		if (frame_end || frame_cycles >= timeout) {
 			vector_t* tmp;
 
-			fcycles += alg_frame_cycles_init();
+			if (frame_end) {
+				if (!free_running)
+					frame_period = frame_cycles;   /* 20,000 .. 150,000 by the guards */
+				free_running = false;
+			} else {
+				free_running = true;
+			}
+			frame_cycles = 0;
 			osint_render();
 			frames_drawn++;
 

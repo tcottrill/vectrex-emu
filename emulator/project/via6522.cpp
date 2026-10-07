@@ -334,6 +334,7 @@ void via_write_reg(uint8_t reg, uint8_t data)
 		via_ifr &= ~0x20;
 		via_t2_oneshot = 1;
 		int_update();
+		via_hook_on_t2_armed();
 		break;
 
 	case 0xA: /* SR */
