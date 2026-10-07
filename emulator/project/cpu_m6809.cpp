@@ -25,20 +25,19 @@ cpu_m6809::cpu_m6809(uint8_t* mem, MemoryReadByte* read_mem, MemoryWriteByte* wr
 
 
 // One-shot interrupt request, edge style, to match the AAE scheduler which
-// pulses cpu_do_int_imm() once per interrupt period. We simply raise the
-// matching level input; the core lowers it again when the interrupt is taken
-// (see the dispatch block at the top of exec()). A still-masked request stays
-// pending until the mask clears, then fires exactly once.
+// pulses cpu_do_int_imm() once per interrupt period. These pending requests
+// are separate from the external pin levels and are consumed when serviced.
+// Masked IRQ/FIRQ requests remain pending until their masks clear.
 void cpu_m6809::m6809_Cause_Interrupt(int type)
 {
-    if (type & M6809_INT_NMI)  m_nmi_line  = true;
-    if (type & M6809_INT_FIRQ) m_firq_line = true;
-    if (type & M6809_INT_IRQ)  m_irq_line  = true;
+    if ((type & M6809_INT_NMI) && m_nmi_enabled) m_nmi_pending = true;
+    if (type & M6809_INT_FIRQ) m_firq_pending = true;
+    if (type & M6809_INT_IRQ)  m_irq_pending = true;
 }
 
 void cpu_m6809::m6809_Clear_Pending_Interrupts()
 {
-    m_nmi_line = m_firq_line = m_irq_line = false;
+    m_nmi_pending = m_firq_pending = m_irq_pending = false;
 }
 
 int cpu_m6809::get_ticks(int reset)
@@ -56,6 +55,7 @@ void cpu_m6809::reset()
     m_sync = false;
     m_cwai = false;
     m_nmi_line = m_irq_line = m_firq_line = false;
+    m_nmi_pending = m_irq_pending = m_firq_pending = false;
     m_PC = read16(0xFFFE);  // RESET vector
     m_PPC = m_PC;
     m_pc_after_last_fetch = m_PC;
@@ -84,7 +84,7 @@ uint8_t cpu_m6809::bus_read8(uint16_t addr)
         }
         ++MemRead;
     }
-    if (MemRead && !mmem)
+    if ((!memory_read || MemRead) && !mmem)
         temp = MEM[addr];
     else if (MemRead && mmem)
         if (log_debug_rw) LOG_INFO("CPU%d: Unhandled Read at %04X", cpu_num, addr);
@@ -109,7 +109,7 @@ void cpu_m6809::bus_write8(uint16_t addr, uint8_t byte)
         }
         ++MemWrite;
     }
-    if (MemWrite && !mmem)
+    if ((!memory_write || MemWrite) && !mmem)
         MEM[addr] = byte;
     else if (MemWrite && mmem)
         if (log_debug_rw) LOG_INFO("CPU%d: Unhandled Write at %04X data: %02X", cpu_num, addr, byte);
@@ -691,7 +691,7 @@ int cpu_m6809::exec(int cycles)
 
         // ---- Interrupt / wait-state check (before fetch) ------------------
         if (m_sync) {
-            if (m_nmi_line || m_firq_line || m_irq_line) {
+            if (m_nmi_line || m_nmi_pending || m_firq_line || m_firq_pending || m_irq_line || m_irq_pending) {
                 m_sync = false;     // wake up; fall through to service if unmasked
             } else {
                 clocktickstotal += abs(last_cycles - cycles);
@@ -699,27 +699,31 @@ int cpu_m6809::exec(int cycles)
             }
         }
 
-        if (m_nmi_line && m_nmi_enabled) {
+        const bool was_cwai = m_cwai;
+        if (m_nmi_pending && m_nmi_enabled) {
             service_interrupt(0xFFFC, true, true);
-            m_nmi_line = false;     // latch lowered when taken
-            cycles -= 19;
+            m_nmi_pending = false;
+            cycles -= was_cwai ? 7 : 19;
             clocktickstotal += abs(last_cycles - cycles);
             continue;
         }
-        else if (m_firq_line && !get_flag(CC_F)) {
+        else if ((m_firq_line || m_firq_pending) && !get_flag(CC_F)) {
             service_interrupt(0xFFF6, true, false);
-            m_firq_line = false;    // latch lowered when taken (one-shot request)
-            cycles -= 10;
+            m_firq_pending = false;
+            cycles -= was_cwai ? 7 : 10;
             clocktickstotal += abs(last_cycles - cycles);
             continue;
         }
-        else if (m_irq_line && !get_flag(CC_I)) {
+        else if ((m_irq_line || m_irq_pending) && !get_flag(CC_I)) {
             service_interrupt(0xFFF8, false, true);
-            m_irq_line = false;     // latch lowered when taken (one-shot request)
-            cycles -= 19;
+            m_irq_pending = false;
+            cycles -= was_cwai ? 7 : 19;
             clocktickstotal += abs(last_cycles - cycles);
             continue;
         }
+
+        // CWAI only wakes for an accepted interrupt; masked inputs do not wake it.
+        if (m_cwai) break;
 
         // ---- Fetch & decode ----------------------------------------------
         m_PPC = m_PC;
@@ -735,7 +739,7 @@ int cpu_m6809::exec(int cycles)
 
         // ----- Misc / inherent control -----
         case 0x12: cycles -= 2; break;                              // NOP
-        case 0x13: m_sync = true; cycles -= 2; break;              // SYNC
+        case 0x13: m_sync = true; cycles -= 4; break;              // SYNC
         case 0x16: { int16_t o = (int16_t)fetch16(); m_PC = (uint16_t)(m_PC + o); cycles -= 5; } break; // LBRA
         case 0x17: { int16_t o = (int16_t)fetch16(); push_s16(m_PC); m_PC = (uint16_t)(m_PC + o); cycles -= 9; } break; // LBSR
         case 0x19: op_daa(); cycles -= 2; break;                   // DAA
@@ -965,7 +969,7 @@ int cpu_m6809::exec_page10()
 
     // Long conditional branches 0x21-0x2F.
     if (op >= 0x21 && op <= 0x2F)
-        return branch_long(test_branch_cond(op & 0x0F));
+        return branch_long(test_branch_cond(op & 0x0F)) - 1; // caller charges prefix
 
     if (op == 0x3F) { // SWI2 (does not set I/F)
         set_flag(CC_E, true);

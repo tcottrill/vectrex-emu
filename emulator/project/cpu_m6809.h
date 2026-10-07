@@ -12,8 +12,8 @@
 //   - Addressing modes (direct / extended / indexed-postbyte) are factored into
 //     shared helpers so the ~256 page-1 opcodes plus the 0x10 / 0x11 prefix
 //     pages reuse one indexed-postbyte decoder.
-//   - Interrupts are LEVEL-SENSITIVE: peripherals raise nmi_line()/irq_line()/
-//     firq_line(); the CPU services them on the next exec() iteration.
+//   - IRQ/FIRQ are level-sensitive; NMI latches assertion edges after S is
+//     initialized. Interrupts are serviced on the next exec() iteration.
 //   - Per-instruction nominal cycle counts from the MC6809 datasheet.
 //   - The 6809 is BIG-ENDIAN; all 16-bit accesses go through read16()/write16().
 //
@@ -73,8 +73,11 @@ public:
                                   // Peripheral-agnostic: the caller advances timers.
     int  get_ticks(int reset);    // running, resettable cycle total
 
-    // Level-sensitive interrupt lines.
-    void nmi_line(bool asserted)  { m_nmi_line  = asserted; }
+    // NMI assertion-edge input and level-sensitive IRQ/FIRQ inputs.
+    void nmi_line(bool asserted)  {
+        if (asserted && !m_nmi_line && m_nmi_enabled) m_nmi_pending = true;
+        m_nmi_line = asserted;
+    }
     void irq_line(bool asserted)  { m_irq_line  = asserted; }
     void firq_line(bool asserted) { m_firq_line = asserted; }
 
@@ -122,8 +125,8 @@ public:
     uint8_t  get_last_ireg()  const { return m_last_opcode; }
     uint8_t  get_last_ireg2() const { return m_last_opcode; }
     // One-shot interrupt request (edge style), matching how the AAE scheduler
-    // drives every other CPU core. Raises the corresponding level input; the
-    // core lowers it again when the interrupt is taken (see exec()).
+    // drives every other CPU core. Latches a request separately from the pin
+    // level; the core clears the request when the interrupt is taken.
     void     m6809_Cause_Interrupt(int type);
     void     m6809_Clear_Pending_Interrupts();
 
@@ -176,6 +179,9 @@ private:
     bool m_nmi_line    = false;
     bool m_irq_line    = false;
     bool m_firq_line   = false;
+    bool m_nmi_pending = false;
+    bool m_irq_pending = false;
+    bool m_firq_pending = false;
     bool m_nmi_enabled = false;  // NMI masked from reset until first write to S
     bool m_sync        = false;  // SYNC: waiting for any interrupt line
     bool m_cwai        = false;  // CWAI: registers pre-stacked, waiting
