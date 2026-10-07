@@ -561,6 +561,8 @@ inline void mixer_set_master_volume_255(int vol255) {
 int mixer_init(int rate, int fps);
 // Just signals the audio thread to process
 void mixer_update();
+// Submit a complete emulation-timed block before its stream data is reused.
+void mixer_update_sync();
 // Shutdown
 void mixer_end();
 

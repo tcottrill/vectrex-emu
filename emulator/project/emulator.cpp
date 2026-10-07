@@ -311,13 +311,8 @@ int emulator_run()
 		end_render_fbo4();
 	}
 
-	// AY-3-8910 audio: the AAE core is cycle-driven (renders proportional to the
-	// CPU cycles run this tick via cpu_scale_by_cycles), so calling it once per
-	// present yields the correct ~44100 Hz output regardless of the present rate.
-	// ay8910_sh_update() renders + feeds its own 16-bit mixer stream; mixer_update()
-	// then signals the audio worker thread to mix + submit to XAudio2.
-	ay8910_sh_update();
-	mixer_update();
+	// vecx_emu submits complete audio blocks from CPU cycles, independently of
+	// this video's present cadence.
 
 	// Heartbeat: roughly once per second, prove the CPU is executing and the
 	// analog engine is producing vectors.
@@ -425,7 +420,7 @@ void emulator_init(int argc, char** argv)
 
 	// Audio: AAE AY-3-8910 core. mixer_init at 44.1 kHz / 50 fps; ay8910_sh_start
 	// allocates its own 16-bit mixer stream (1 chip clocked at the 1.5 MHz Vectrex
-	// CPU rate), and ay8910_sh_update() (per frame in emulator_run) renders + feeds it.
+	// CPU rate). vecx_emu renders and submits a block every 30,000 CPU cycles.
 	mixer_init(44100, 50);
 	AY8910Config ay_cfg = {};
 	ay_cfg.num_chips = 1;

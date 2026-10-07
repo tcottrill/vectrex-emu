@@ -927,6 +927,22 @@ static void mixer_reap_voice_channels()
 }
 
 // -----------------------------------------------------------------------------
+// mixer_update_sync
+// Like mixer_update, but mixes and submits on the calling thread before
+// returning, so a stream's single block buffer is consumed before the caller
+// refills it.
+// -----------------------------------------------------------------------------
+void mixer_update_sync()
+{
+	if (!audioThreadActive.load(std::memory_order_acquire)) return;
+	mixer_reap_voice_channels();
+	// Serialize with the worker, which holds this mutex while mixing. The
+	// Vectrex cycle scheduler uses only this path, without queuing worker jobs.
+	std::lock_guard<std::mutex> lock(audioCVMutex);
+	mixer_update_internal();
+}
+
+// -----------------------------------------------------------------------------
 // mixer_update
 // Reaps any drained voice-path channels (so removed SAMPLEs can be freed),
 // then signals the audio thread to run mixer_update_internal().

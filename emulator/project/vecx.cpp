@@ -43,6 +43,7 @@
 #include "alg.h"
 #include "ay8910.h"
 #include "sys_log.h"
+#include "mixer.h"
 
 // The whole 64K Vectrex address space (extern in cpu_control.h). emulator.cpp
 // loads the BIOS into 0xE000-0xFFFF and the cart into 0x0000-0x7FFF; the RAM
@@ -62,6 +63,7 @@ static unsigned snd_select = 0;
 #define AY8910_HOST_FPS_VECX 50
 
 static long fcycles;
+static int audio_cycles = 0; // cycles within the current 1/50-second audio block
 
 /* ===== Vectrex board glue: VIA callbacks (invoked from via6522.cpp) ======= */
 /* These are the old snd_update()/alg_update() bodies, rewritten to use the
@@ -108,7 +110,7 @@ uint8_t via_hook_read_port_a(uint8_t orb, uint8_t ora)
 {
 	if ((orb & 0x18) == 0x08) {
 		// PSG drives PA: return current latched register�s contents
-		return (uint8_t)snd_regs[snd_select & 0x0F];
+		return snd_select == 14 ? (uint8_t)snd_regs[14] : ay8910_read(0);
 	}
 	return ora;
 }
@@ -166,12 +168,12 @@ int cpu_scale_by_cycles(int val, int clock)
 {
 	/* Map the CPU's cycle position within the current frame onto [0, val].
 	 * `clock` is the chip/CPU clock (1.5 MHz on Vectrex); at 50 fps one frame is
-	 * clock/50 cycles. get6809ticks(0) returns cycles since the last per-frame
-	 * reset (done in vecx_emu via get6809ticks(1)). */
+	 * clock/50 cycles. audio_cycles persists across video presents and resets
+	 * only after a complete audio block (or hardware reset). */
 	int max = clock / AY8910_HOST_FPS_VECX;
 	if (max <= 0) return 0;
 
-	int current = g_cpu->get6809ticks(0);
+	int current = audio_cycles;
 
 	int k = (int)(val * ((float)current / (float)max));
 	return k;
@@ -200,6 +202,7 @@ void vecx_reset(void)
 	snd_regs[14] = 0xff;
 
 	snd_select = 0;
+	audio_cycles = 0;
 
 	via_reset();
 
@@ -234,9 +237,8 @@ int vecx_emu(long cycles)
 	unsigned c, icycles;
 	int frames_drawn = 0;
 
-	/* New audio frame: reset the CPU cycle counter so cpu_scale_by_cycles()
-	 * maps this frame's progress (0..cycles-per-frame) onto the AY sample
-	 * buffer for the chip's mid-frame catch-up rendering. */
+	/* Keep diagnostic CPU ticks local to this video update. Audio has its own
+	 * cycle position, retained across video updates of any refresh rate. */
 	g_cpu->get6809ticks(1);
 
 	while (cycles > 0) {
@@ -248,6 +250,11 @@ int vecx_emu(long cycles)
 			via_sstep0();
 			alg_sstep();
 			via_sstep1();
+			if (++audio_cycles == VECTREX_MHZ / AY8910_HOST_FPS_VECX) {
+				ay8910_sh_update();
+				mixer_update_sync();
+				audio_cycles = 0;
+			}
 		}
 
 		cycles -= (long)icycles;

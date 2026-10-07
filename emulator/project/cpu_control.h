@@ -7,7 +7,7 @@
 // cpu_scale_by_cycles() for its mid-frame "catch-up" rendering: it maps the
 // CPU's cycle position within the current frame onto a position in the audio
 // sample buffer. The real implementation lives in vecx.cpp and is backed by the
-// cpu_m6809 tick counter (get6809ticks), reset once per frame.
+// emulated audio-block cycle counter, independent of video refresh.
 // -----------------------------------------------------------------------------
 
 int cpu_scale_by_cycles(int val, int clock);

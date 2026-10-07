@@ -1,5 +1,5 @@
 // -----------------------------------------------------------------------------
-// AY-3-8910 / YM2149 PSG emulator for AAE (Another Arcade Emulator)
+// AY-3-8910 / AY-3-8912 PSG emulator for AAE (Another Arcade Emulator)
 //
 // Attribution / Licensing:
 //   The synthesis core in this file -- the volume (DAC) table construction, the
@@ -110,9 +110,9 @@ void AY8910Chip::configure(int chip_index_, int master_clock, int sys_freq,
         ((double)AY8910_STEP * (double)sys_freq * 8.0) / (double)master_clock + 0.5);
     if (UpdateStep == 0) UpdateStep = 1;
 
-    // Build the volume table: 1.5 dB per envelope step, log scale.
+    // Build the legacy log table. AY fixed and envelope levels use odd entries.
     // VolTable[31] = MAX_OUTPUT = 32767; each step down divides by 10^(1.5/20).
-    // Tone-level v reads VolTable[v*2+1] (odd index); envelope reads any index.
+    // Nonzero AY level v reads VolTable[v*2+1]; level zero is silent.
     {
         double out_v = 32767.0;
         for (int i = 31; i > 0; --i) {
@@ -255,15 +255,16 @@ void AY8910Chip::apply_register_side_effects(uint8_t addr, uint8_t data)
 
     case 11: case 12:
         old_period = PeriodE;
-        PeriodE = (regs[11] + 256 * regs[12]) * static_cast<int32_t>(UpdateStep);
-        if (PeriodE == 0) PeriodE = static_cast<int32_t>(UpdateStep) / 2;
+        // AY has 16 envelope levels, each lasting 16 master clocks per period.
+        PeriodE = (regs[11] + 256 * regs[12]) * static_cast<int32_t>(UpdateStep) * 2;
+        if (PeriodE == 0) PeriodE = static_cast<int32_t>(UpdateStep);
         CountE += PeriodE - old_period;
         if (CountE <= 0) CountE = 1;
         break;
 
     case 13:
         regs[13] &= 0x0f;
-        Attack = (regs[13] & 0x04) ? 0x1f : 0x00;
+        Attack = (regs[13] & 0x04) ? 0x0f : 0x00;
         if ((regs[13] & 0x08) == 0) {
             // Continue = 0: collapse to a one-shot shape (hold at end).
             Hold = 1;
@@ -273,9 +274,9 @@ void AY8910Chip::apply_register_side_effects(uint8_t addr, uint8_t data)
             Alternate = regs[13] & 0x02;
         }
         CountE = PeriodE;
-        CountEnv = 0x1f;
+        CountEnv = 0x0f;
         Holding = 0;
-        VolE = VolTable[CountEnv ^ Attack];
+        VolE = (CountEnv ^ Attack) ? VolTable[(CountEnv ^ Attack) * 2 + 1] : 0;
         if (EnvelopeA) VolA = VolE;
         if (EnvelopeB) VolB = VolE;
         if (EnvelopeC) VolC = VolE;
@@ -438,16 +439,16 @@ void AY8910Chip::render(int16_t* dst, int n)
 
                 if (CountEnv < 0) {
                     if (Hold) {
-                        if (Alternate) Attack ^= 0x1f;
+                        if (Alternate) Attack ^= 0x0f;
                         Holding = 1;
                         CountEnv = 0;
                     } else {
-                        if (Alternate && (CountEnv & 0x20)) Attack ^= 0x1f;
-                        CountEnv &= 0x1f;
+                        if (Alternate && (CountEnv & 0x10)) Attack ^= 0x0f;
+                        CountEnv &= 0x0f;
                     }
                 }
 
-                VolE = VolTable[CountEnv ^ Attack];
+                VolE = (CountEnv ^ Attack) ? VolTable[(CountEnv ^ Attack) * 2 + 1] : 0;
                 if (EnvelopeA) VolA = VolE;
                 if (EnvelopeB) VolB = VolE;
                 if (EnvelopeC) VolC = VolE;
@@ -498,7 +499,7 @@ void update_bank_to_now()
     if (newpos > g_bank.buffer_len) newpos = g_bank.buffer_len;
     if (newpos < 0) newpos = 0;
     const int delta = newpos - g_bank.sample_pos;
-    if (delta < 10) return;
+    if (delta <= 0) return;
     for (int i = 0; i < g_bank.num_chips; ++i) {
         g_bank.chip[i].render(g_bank.buffer[i] + g_bank.sample_pos, delta);
     }
@@ -603,6 +604,7 @@ void ay8910_reset(int chip)
 {
     if (!g_bank.active) return;
     if (chip == -1) {
+        g_bank.sample_pos = 0;
         for (int i = 0; i < g_bank.num_chips; ++i) {
             g_bank.chip[i].reset();
         }
