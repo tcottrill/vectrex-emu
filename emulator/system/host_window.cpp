@@ -750,6 +750,52 @@ static void HostTakeSnapshot()
     TEX::Snapshot(base + "_" + stamp, "data/snaps");
 }
 
+// ---- Accessibility shortcut keys ----------------------------------------------
+// Pressing Shift five times (a fire button on the keyboard) opens the Sticky
+// Keys prompt and drops the game out of focus; holding Shift and NumLock do the
+// same for Filter Keys and Toggle Keys. Microsoft's "Disabling Shortcut Keys in
+// Games" pattern: while our window is active, turn off just the HOTKEYS of any
+// of these features the user does not have switched on, and restore the saved
+// settings on deactivation and exit. No SPIF_UPDATEINIFILE, so nothing persists
+// beyond this session even if the process dies without restoring.
+static STICKYKEYS g_startupStickyKeys = { sizeof(STICKYKEYS), 0 };
+static TOGGLEKEYS g_startupToggleKeys = { sizeof(TOGGLEKEYS), 0 };
+static FILTERKEYS g_startupFilterKeys = { sizeof(FILTERKEYS), 0 };
+
+static void HostSaveShortcutKeys()
+{
+    SystemParametersInfo(SPI_GETSTICKYKEYS, sizeof(STICKYKEYS), &g_startupStickyKeys, 0);
+    SystemParametersInfo(SPI_GETTOGGLEKEYS, sizeof(TOGGLEKEYS), &g_startupToggleKeys, 0);
+    SystemParametersInfo(SPI_GETFILTERKEYS, sizeof(FILTERKEYS), &g_startupFilterKeys, 0);
+}
+
+static void HostAllowShortcutKeys(bool allow)
+{
+    if (allow) {
+        // Restore the user's settings exactly as they were at startup.
+        SystemParametersInfo(SPI_SETSTICKYKEYS, sizeof(STICKYKEYS), &g_startupStickyKeys, 0);
+        SystemParametersInfo(SPI_SETTOGGLEKEYS, sizeof(TOGGLEKEYS), &g_startupToggleKeys, 0);
+        SystemParametersInfo(SPI_SETFILTERKEYS, sizeof(FILTERKEYS), &g_startupFilterKeys, 0);
+        return;
+    }
+    // A feature the user has ON keeps its hotkey (they may need it to turn it off).
+    STICKYKEYS sk = g_startupStickyKeys;
+    if ((sk.dwFlags & SKF_STICKYKEYSON) == 0) {
+        sk.dwFlags &= ~(SKF_HOTKEYACTIVE | SKF_CONFIRMHOTKEY);
+        SystemParametersInfo(SPI_SETSTICKYKEYS, sizeof(STICKYKEYS), &sk, 0);
+    }
+    TOGGLEKEYS tk = g_startupToggleKeys;
+    if ((tk.dwFlags & TKF_TOGGLEKEYSON) == 0) {
+        tk.dwFlags &= ~(TKF_HOTKEYACTIVE | TKF_CONFIRMHOTKEY);
+        SystemParametersInfo(SPI_SETTOGGLEKEYS, sizeof(TOGGLEKEYS), &tk, 0);
+    }
+    FILTERKEYS fk = g_startupFilterKeys;
+    if ((fk.dwFlags & FKF_FILTERKEYSON) == 0) {
+        fk.dwFlags &= ~(FKF_HOTKEYACTIVE | FKF_CONFIRMHOTKEY);
+        SystemParametersInfo(SPI_SETFILTERKEYS, sizeof(FILTERKEYS), &fk, 0);
+    }
+}
+
 static LRESULT CALLBACK HostWndProc(HWND wnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
     switch (msg) {
@@ -806,6 +852,11 @@ static LRESULT CALLBACK HostWndProc(HWND wnd, UINT msg, WPARAM wParam, LPARAM lP
         if ((wParam & 0xFFF0) == SC_KEYMENU) return 0;
         return DefWindowProc(wnd, msg, wParam, lParam);
 
+    case WM_ACTIVATEAPP:
+        // Shortcut keys off while we have focus, the user's settings when we don't.
+        HostAllowShortcutKeys(wParam == FALSE);
+        return 0;
+
     case WM_RBUTTONUP:
         HostShowPopupMenu(wnd);
         return 0;
@@ -841,6 +892,7 @@ int host_run(HINSTANCE hInstance, int nCmdShow, const HostApp* app)
 
     LogOpen("vectrex-emu-log.txt");
     LOG_INFO("host_run: starting '%ls'", app->title);
+    HostSaveShortcutKeys();   // before any WM_ACTIVATEAPP can change them
     HostEnableDpiAwareness();
 
     // Front-end command line (applied below; overrides matching ini settings).
@@ -1044,6 +1096,7 @@ int host_run(HINSTANCE hInstance, int nCmdShow, const HostApp* app)
         set_config_string("paths", "lastromdir", win32::Utf16ToUtf8(g_lastRomDir).c_str());
 
     if (app->shutdown) app->shutdown();
+    HostAllowShortcutKeys(true);   // give the user's accessibility settings back
     FrameLimiter::Shutdown();
     DeleteGLContext();
     RawInput_Shutdown();
